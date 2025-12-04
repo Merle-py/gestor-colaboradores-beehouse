@@ -44,14 +44,13 @@ export default function RecessoColetivoPage() {
     }, [])
 
     const fetchCollaborators = async () => {
-        const { data } = await supabase
-            .from('collaborators')
+        const { data } = await (supabase.from('collaborators') as any)
             .select('id, full_name, department, status')
             .eq('status', 'ativo')
             .order('full_name')
 
         if (data) {
-            setCollaborators(data.map((c) => ({ ...c, selected: false })))
+            setCollaborators(data.map((c: any) => ({ ...c, selected: false })))
         }
         setLoading(false)
     }
@@ -97,7 +96,7 @@ export default function RecessoColetivoPage() {
                 status: 'approved',
             }))
 
-            const { error } = await supabase.from('recess_requests').insert(recesses)
+            const { error } = await (supabase.from('recess_requests') as any).insert(recesses)
             if (error) throw error
 
             setFeedback({
@@ -227,14 +226,14 @@ export default function RecessoColetivoPage() {
                                                         key={c.id}
                                                         onClick={() => handleSelectCollaborator(c.id)}
                                                         className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${c.selected
-                                                                ? 'bg-primary-50 border-primary-300'
-                                                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                                                            ? 'bg-primary-50 border-primary-300'
+                                                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                                                             }`}
                                                     >
                                                         <div
                                                             className={`w-5 h-5 rounded border flex items-center justify-center ${c.selected
-                                                                    ? 'bg-primary-500 border-primary-500'
-                                                                    : 'border-gray-300'
+                                                                ? 'bg-primary-500 border-primary-500'
+                                                                : 'border-gray-300'
                                                                 }`}
                                                         >
                                                             {c.selected && <Check className="w-3 h-3 text-white" />}

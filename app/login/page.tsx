@@ -1,22 +1,152 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Loader2, Building2, AlertCircle, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
 
+declare global {
+    interface Window {
+        BX24?: {
+            init: (callback: () => void) => void
+            callMethod: (method: string, params: object, callback: (result: any) => void) => void
+            getAuth: () => { access_token: string; domain: string; member_id: string } | null
+            placement?: {
+                info: () => { ID: string }
+            }
+        }
+    }
+}
+
 export default function LoginPage() {
-    const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [success, setSuccess] = useState(false)
+    const [statusMessage, setStatusMessage] = useState('Conectando ao Bitrix24...')
     const router = useRouter()
+    const searchParams = useSearchParams()
     const supabase = createClient()
+
+    useEffect(() => {
+        initBitrixAuth()
+    }, [])
+
+    const initBitrixAuth = async () => {
+        // Check if we have auth params from Bitrix (passed via URL or placement)
+        const authId = searchParams.get('AUTH_ID')
+        const memberId = searchParams.get('member_id') || searchParams.get('DOMAIN')
+
+        // Method 1: Check URL params (Bitrix passes these for local apps)
+        if (authId) {
+            setStatusMessage('Autenticando via Bitrix24...')
+            await authenticateWithBitrixToken(authId)
+            return
+        }
+
+        // Method 2: Check if BX24 JS SDK is available (app inside Bitrix iframe)
+        if (typeof window !== 'undefined' && window.BX24) {
+            setStatusMessage('Carregando SDK do Bitrix24...')
+            window.BX24.init(() => {
+                window.BX24?.callMethod('user.current', {}, async (result: any) => {
+                    if (result.data && result.data()) {
+                        const user = result.data()
+                        setStatusMessage(`Bem-vindo, ${user.NAME}!`)
+                        await authenticateWithBitrixId(user.ID)
+                    } else {
+                        setError('Não foi possível obter dados do usuário do Bitrix')
+                        setLoading(false)
+                    }
+                })
+            })
+            return
+        }
+
+        // Method 3: Try to get user from server-side Bitrix API via webhook
+        // This is for when the app is accessed directly with MEMBER_ID in URL
+        const placementId = searchParams.get('PLACEMENT_ID')
+        if (placementId) {
+            setStatusMessage('Validando acesso...')
+            await authenticateWithBitrixId(placementId)
+            return
+        }
+
+        // No Bitrix context detected - show manual login or dev mode
+        setStatusMessage('Bitrix24 não detectado')
+        setLoading(false)
+    }
+
+    const authenticateWithBitrixToken = async (authToken: string) => {
+        try {
+            const response = await fetch('/api/auth/bitrix', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ auth_token: authToken }),
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Erro na autenticação')
+            }
+
+            await setSessionAndRedirect(data.token)
+        } catch (e: any) {
+            setError(e.message)
+            setLoading(false)
+        }
+    }
+
+    const authenticateWithBitrixId = async (bitrixId: string) => {
+        try {
+            setStatusMessage('Validando usuário...')
+
+            const response = await fetch('/api/auth/bitrix', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bitrix_id: bitrixId }),
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Erro na autenticação')
+            }
+
+            await setSessionAndRedirect(data.token)
+        } catch (e: any) {
+            setError(e.message)
+            setLoading(false)
+        }
+    }
+
+    const setSessionAndRedirect = async (token: string) => {
+        setSuccess(true)
+        setStatusMessage('Entrando no sistema...')
+
+        const { error: sessionError } = await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: token,
+        })
+
+        if (sessionError) {
+            setError(sessionError.message)
+            setLoading(false)
+            return
+        }
+
+        setTimeout(() => {
+            router.push('/')
+            router.refresh()
+        }, 500)
+    }
 
     const handleDevLogin = async () => {
         try {
             setLoading(true)
             setError(null)
+            setStatusMessage('Entrando em modo desenvolvimento...')
 
             const response = await fetch('/api/auth/dev', { method: 'POST' })
             const data = await response.json()
@@ -25,70 +155,82 @@ export default function LoginPage() {
                 throw new Error(data.error || 'Erro ao realizar login')
             }
 
-            if (data.token) {
-                console.log('Login Dev: Token recebido, iniciando sessão...')
-
-                const { error: sessionError } = await supabase.auth.setSession({
-                    access_token: data.token,
-                    refresh_token: data.token,
-                })
-
-                if (sessionError) throw sessionError
-
-                router.push('/colaboradores')
-                router.refresh()
-            }
+            await setSessionAndRedirect(data.token)
         } catch (e: any) {
-            console.error('Erro no login dev:', e)
-            setError('Erro ao entrar como Dev: ' + (e.message || e))
-        } finally {
+            setError(e.message)
             setLoading(false)
         }
     }
 
-    const retryLogin = () => {
-        window.location.reload()
+    const handleRetry = () => {
+        setError(null)
+        setLoading(true)
+        initBitrixAuth()
     }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-            <Card className="w-full max-w-md text-center p-6">
-                <CardContent className="pt-6">
-                    <div className="flex justify-center mb-6">
-                        <RefreshCw className="w-12 h-12 text-primary-500 animate-spin" />
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex items-center justify-center p-4">
+            <Card className="w-full max-w-md shadow-xl border-0">
+                <CardHeader className="text-center pb-2">
+                    <div className="mx-auto w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mb-4">
+                        <Building2 className="w-8 h-8 text-primary-600" />
                     </div>
+                    <CardTitle className="text-2xl font-bold text-gray-900">
+                        Gestor de Colaboradores
+                    </CardTitle>
+                    <CardDescription>
+                        Sistema de gestão de RH - Beehouse
+                    </CardDescription>
+                </CardHeader>
 
-                    <h1 className="text-xl font-bold text-gray-900 mb-2">
-                        Conectando ao Bitrix24...
-                    </h1>
-                    <p className="text-gray-500 text-sm mb-6">
-                        Validando suas credenciais de acesso.
-                    </p>
-
-                    <div className="mt-8 pt-4 border-t border-gray-200">
-                        <p className="text-xs text-gray-400 mb-2">Modo Desenvolvimento</p>
-                        <Button
-                            onClick={handleDevLogin}
-                            loading={loading}
-                            variant="secondary"
-                            className="w-full"
-                        >
-                            Entrar como Admin (Bypass)
-                        </Button>
-                    </div>
-
-                    {error && (
-                        <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md text-sm text-left">
-                            <p className="font-bold">Erro de Autenticação:</p>
-                            <p>{error}</p>
-                            <Button
-                                size="sm"
-                                variant="destructive"
-                                className="mt-2"
-                                onClick={retryLogin}
-                            >
+                <CardContent className="space-y-6">
+                    {success ? (
+                        <div className="text-center py-8">
+                            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                            <p className="text-lg font-medium text-gray-900">{statusMessage}</p>
+                            <Loader2 className="w-5 h-5 animate-spin mx-auto mt-4 text-gray-400" />
+                        </div>
+                    ) : loading ? (
+                        <div className="text-center py-8">
+                            <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
+                            <p className="text-gray-600">{statusMessage}</p>
+                        </div>
+                    ) : error ? (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-sm font-medium text-red-800">Erro</p>
+                                    <p className="text-sm text-red-600">{error}</p>
+                                </div>
+                            </div>
+                            <Button onClick={handleRetry} className="w-full">
                                 Tentar Novamente
                             </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                                <p className="text-sm text-amber-800">
+                                    <strong>Acesso via Bitrix24:</strong> Este aplicativo deve ser acessado
+                                    através do menu de aplicativos do Bitrix24.
+                                </p>
+                            </div>
+
+                            {process.env.NODE_ENV === 'development' && (
+                                <div className="pt-4 border-t border-gray-200">
+                                    <p className="text-xs text-gray-400 text-center mb-3">
+                                        Modo Desenvolvimento
+                                    </p>
+                                    <Button
+                                        onClick={handleDevLogin}
+                                        variant="outline"
+                                        className="w-full"
+                                    >
+                                        Entrar como Admin (Dev)
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>

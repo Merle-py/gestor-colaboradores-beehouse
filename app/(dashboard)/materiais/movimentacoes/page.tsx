@@ -66,7 +66,7 @@ export default function MovimentacoesPage() {
                 : selectedItem!.quantity_available - qty
 
             // Register movement
-            const { error: movError } = await supabase.from('inventory_movements').insert({
+            const { error: movError } = await (supabase.from('inventory_movements') as any).insert({
                 item_id: form.item_id,
                 movement_type: form.movement_type,
                 quantity: qty,
@@ -80,8 +80,7 @@ export default function MovimentacoesPage() {
             if (movError) throw movError
 
             // Update stock
-            const { error: stockError } = await supabase
-                .from('inventory_items')
+            const { error: stockError } = await (supabase.from('inventory_items') as any)
                 .update({ quantity_available: newQuantity })
                 .eq('id', form.item_id)
 

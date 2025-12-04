@@ -83,9 +83,9 @@ export default function ColaboradorDetailPage() {
         setLoading(true)
 
         const [collabRes, contractsRes, deliveriesRes] = await Promise.all([
-            supabase.from('collaborators').select('*').eq('id', params.id).single(),
-            supabase.from('contracts').select('*').eq('collaborator_id', params.id).order('start_date', { ascending: false }),
-            supabase.from('epi_deliveries').select('*, item:inventory_items(name, category)').eq('collaborator_id', params.id).order('delivery_date', { ascending: false }).limit(5),
+            (supabase.from('collaborators') as any).select('*').eq('id', params.id).single(),
+            (supabase.from('contracts') as any).select('*').eq('collaborator_id', params.id).order('start_date', { ascending: false }),
+            (supabase.from('epi_deliveries') as any).select('*, item:inventory_items(name, category)').eq('collaborator_id', params.id).order('delivery_date', { ascending: false }).limit(5),
         ])
 
         if (collabRes.data) setCollaborator(collabRes.data as Collaborator)

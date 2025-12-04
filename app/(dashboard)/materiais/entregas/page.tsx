@@ -76,7 +76,7 @@ export default function EntregaMaterialPage() {
             }
 
             // Insert delivery
-            const { error: insertError } = await supabase.from('epi_deliveries').insert({
+            const { error: insertError } = await (supabase.from('epi_deliveries') as any).insert({
                 collaborator_id: form.collaborator_id,
                 item_id: form.item_id,
                 quantity: qty,
@@ -91,15 +91,14 @@ export default function EntregaMaterialPage() {
             if (insertError) throw insertError
 
             // Update stock
-            const { error: stockError } = await supabase
-                .from('inventory_items')
+            const { error: stockError } = await (supabase.from('inventory_items') as any)
                 .update({ quantity_available: selectedItem!.quantity_available - qty })
                 .eq('id', form.item_id)
 
             if (stockError) throw stockError
 
             // Register movement
-            await supabase.from('inventory_movements').insert({
+            await (supabase.from('inventory_movements') as any).insert({
                 item_id: form.item_id,
                 movement_type: 'exit',
                 quantity: qty,

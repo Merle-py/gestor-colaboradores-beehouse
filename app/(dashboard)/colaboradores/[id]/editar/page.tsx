@@ -76,8 +76,7 @@ export default function EditarColaboradorPage() {
     useEffect(() => {
         const fetchCollaborator = async () => {
             if (!params.id) return
-            const { data, error } = await supabase
-                .from('collaborators')
+            const { data, error } = await (supabase.from('collaborators') as any)
                 .select('*')
                 .eq('id', params.id)
                 .single()
@@ -120,8 +119,7 @@ export default function EditarColaboradorPage() {
         setFeedback(null)
 
         try {
-            const { error } = await supabase
-                .from('collaborators')
+            const { error } = await (supabase.from('collaborators') as any)
                 .update({
                     full_name: formData.full_name,
                     email: formData.email,
@@ -144,7 +142,7 @@ export default function EditarColaboradorPage() {
                     pix_key: formData.pix_key || null,
                     updated_at: new Date().toISOString(),
                 })
-                .eq('id', params.id)
+                .eq('id', params.id as string)
 
             if (error) throw error
 

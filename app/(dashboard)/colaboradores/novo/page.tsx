@@ -128,8 +128,7 @@ export default function NovoColaboradorPage() {
 
         try {
             // Insert collaborator
-            const { data: collab, error: collabError } = await supabase
-                .from('collaborators')
+            const { data: collab, error: collabError } = await (supabase.from('collaborators') as any)
                 .insert({
                     full_name: formData.full_name,
                     email: formData.email,
@@ -154,7 +153,7 @@ export default function NovoColaboradorPage() {
 
             // Insert contract if enabled
             if (contractData.create_contract && collab) {
-                const { error: contractError } = await supabase.from('contracts').insert({
+                const { error: contractError } = await (supabase.from('contracts') as any).insert({
                     collaborator_id: collab.id,
                     contract_type: contractData.contract_type,
                     start_date: contractData.start_date,
@@ -170,7 +169,7 @@ export default function NovoColaboradorPage() {
 
             // Create pending action for documents
             if (collab) {
-                await supabase.from('pending_actions').insert({
+                await (supabase.from('pending_actions') as any).insert({
                     action_type: 'document_upload',
                     title: `Documentos pendentes: ${formData.full_name}`,
                     description: 'Colaborador admitido. Aguardando upload de documentos.',
@@ -225,10 +224,10 @@ export default function NovoColaboradorPage() {
                         <div key={step.id} className="flex items-center">
                             <div
                                 className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${isActive
-                                        ? 'bg-primary-500 text-black font-bold shadow-lg'
-                                        : isCompleted
-                                            ? 'bg-green-500 text-white'
-                                            : 'bg-gray-100 text-gray-400'
+                                    ? 'bg-primary-500 text-black font-bold shadow-lg'
+                                    : isCompleted
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-gray-100 text-gray-400'
                                     }`}
                             >
                                 {isCompleted ? (

@@ -118,7 +118,7 @@ export default function NotasFiscaisPage() {
 
         setSaving(true)
         try {
-            const { error } = await supabase.from('notas_fiscais').insert({
+            const { error } = await (supabase.from('notas_fiscais') as any).insert({
                 collaborator_id: newNF.collaborator_id,
                 nf_number: newNF.nf_number,
                 nf_date: newNF.nf_date,
@@ -147,7 +147,7 @@ export default function NotasFiscaisPage() {
     }
 
     const handleUpdateStatus = async (id: string, status: string) => {
-        await supabase.from('notas_fiscais').update({ status }).eq('id', id)
+        await (supabase.from('notas_fiscais') as any).update({ status }).eq('id', id)
         fetchData()
     }
 

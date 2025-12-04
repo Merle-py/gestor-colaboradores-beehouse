@@ -30,6 +30,11 @@ export type ActionStatus = 'pending' | 'in_review' | 'urgent' | 'completed'
 export type ModuleType = 'Documentos' | 'Contratos' | 'Recessos' | 'Materiais' | 'Financeiro'
 export type AlertSeverity = 'info' | 'warning' | 'critical'
 
+// Financial Module Enums
+export type PaymentType = 'salary' | 'invoice' | 'bonus' | 'reimbursement' | 'other'
+export type PaymentStatus = 'pending' | 'scheduled' | 'paid' | 'cancelled'
+export type ExpenseCategory = 'materials' | 'equipment' | 'services' | 'utilities' | 'other'
+
 // =====================================================
 // BASE TYPES
 // =====================================================
@@ -315,6 +320,56 @@ export interface CriticalAlert {
     related_id: string
     days_remaining: number
     module: ModuleType
+}
+
+// =====================================================
+// MODULE V: FINANCEIRO
+// =====================================================
+
+export interface Payment {
+    id: string
+    collaborator_id: string
+    contract_id: string | null
+    payment_type: PaymentType
+    reference_month: string
+    description: string | null
+    gross_value: number
+    deductions: number
+    net_value: number
+    due_date: string
+    paid_date: string | null
+    status: PaymentStatus
+    invoice_number: string | null
+    notes: string | null
+    created_at: string
+    updated_at: string
+    // Relations
+    collaborator?: Collaborator
+    contract?: Contract
+}
+
+export interface Expense {
+    id: string
+    category: ExpenseCategory
+    description: string
+    value: number
+    date: string
+    department: string | null
+    collaborator_id: string | null
+    invoice_number: string | null
+    notes: string | null
+    created_at: string
+    // Relations
+    collaborator?: Collaborator
+}
+
+export interface FinancialSummary {
+    total_pj: number
+    total_clt: number
+    total_materials: number
+    total_expenses: number
+    total_pending: number
+    month: string
 }
 
 // =====================================================

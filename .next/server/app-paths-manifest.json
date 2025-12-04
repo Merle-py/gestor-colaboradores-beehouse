@@ -1,7 +1,0 @@
-{
-  "/(dashboard)/contratos/novo/page": "app/(dashboard)/contratos/novo/page.js",
-  "/(dashboard)/perfil/page": "app/(dashboard)/perfil/page.js",
-  "/(dashboard)/page": "app/(dashboard)/page.js",
-  "/(dashboard)/colaboradores/[id]/editar/page": "app/(dashboard)/colaboradores/[id]/editar/page.js",
-  "/(dashboard)/colaboradores/page": "app/(dashboard)/colaboradores/page.js"
-}

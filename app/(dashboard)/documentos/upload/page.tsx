@@ -150,8 +150,7 @@ export default function UploadDocumentosPage() {
                 .getPublicUrl(fileName)
 
             // Check if record exists
-            const { data: existing } = await supabase
-                .from('collaborator_documents')
+            const { data: existing } = await (supabase.from('collaborator_documents') as any)
                 .select('id')
                 .eq('collaborator_id', selectedCollaborator)
                 .eq('checklist_item_id', currentUploadId)
@@ -159,8 +158,7 @@ export default function UploadDocumentosPage() {
 
             if (existing) {
                 // Update existing
-                await supabase
-                    .from('collaborator_documents')
+                await (supabase.from('collaborator_documents') as any)
                     .update({
                         file_url: publicUrl,
                         status: 'uploaded',
@@ -169,7 +167,7 @@ export default function UploadDocumentosPage() {
                     .eq('id', existing.id)
             } else {
                 // Create new
-                await supabase.from('collaborator_documents').insert({
+                await (supabase.from('collaborator_documents') as any).insert({
                     collaborator_id: selectedCollaborator,
                     checklist_item_id: currentUploadId,
                     file_url: publicUrl,
@@ -192,8 +190,7 @@ export default function UploadDocumentosPage() {
 
     const handleApprove = async (docId: string) => {
         if (docId.startsWith('pending-')) return
-        await supabase
-            .from('collaborator_documents')
+        await (supabase.from('collaborator_documents') as any)
             .update({ status: 'approved' })
             .eq('id', docId)
         fetchDocuments()
@@ -203,8 +200,7 @@ export default function UploadDocumentosPage() {
         if (docId.startsWith('pending-')) return
         const notes = prompt('Motivo da rejeição:')
         if (notes === null) return
-        await supabase
-            .from('collaborator_documents')
+        await (supabase.from('collaborator_documents') as any)
             .update({ status: 'rejected', notes })
             .eq('id', docId)
         fetchDocuments()
@@ -326,16 +322,16 @@ export default function UploadDocumentosPage() {
                                         <div
                                             key={doc.id}
                                             className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${doc.status === 'approved'
-                                                    ? 'bg-green-50 border-green-200'
-                                                    : doc.status === 'rejected'
-                                                        ? 'bg-red-50 border-red-200'
-                                                        : 'bg-gray-50 border-gray-200'
+                                                ? 'bg-green-50 border-green-200'
+                                                : doc.status === 'rejected'
+                                                    ? 'bg-red-50 border-red-200'
+                                                    : 'bg-gray-50 border-gray-200'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <FileText className={`w-5 h-5 ${doc.status === 'approved' ? 'text-green-500' :
-                                                        doc.status === 'rejected' ? 'text-red-500' :
-                                                            'text-gray-400'
+                                                    doc.status === 'rejected' ? 'text-red-500' :
+                                                        'text-gray-400'
                                                     }`} />
                                                 <div>
                                                     <p className="font-medium text-gray-900">{doc.document_name}</p>

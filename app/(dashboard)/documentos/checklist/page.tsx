@@ -81,7 +81,7 @@ export default function ChecklistPage() {
         }
 
         setSaving(true)
-        const { error } = await supabase.from('document_checklists').insert({
+        const { error } = await (supabase.from('document_checklists') as any).insert({
             document_name: newItem.document_name,
             description: newItem.description || null,
             is_required: newItem.is_required,
@@ -112,8 +112,7 @@ export default function ChecklistPage() {
     }
 
     const handleToggleRequired = async (id: string, current: boolean) => {
-        const { error } = await supabase
-            .from('document_checklists')
+        const { error } = await (supabase.from('document_checklists') as any)
             .update({ is_required: !current })
             .eq('id', id)
 

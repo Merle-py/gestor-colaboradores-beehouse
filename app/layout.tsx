@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
@@ -16,6 +17,13 @@ export default function RootLayout({
 }) {
     return (
         <html lang="pt-BR">
+            <head>
+                {/* Bitrix24 JS SDK for app integration */}
+                <Script
+                    src="https://api.bitrix24.com/api/v1/"
+                    strategy="beforeInteractive"
+                />
+            </head>
             <body className={inter.className}>
                 {children}
             </body>

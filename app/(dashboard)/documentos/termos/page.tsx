@@ -115,7 +115,7 @@ export default function TermosPage() {
                 .single()
 
             if (!existing) {
-                await supabase.from('collaborator_terms').insert({
+                await (supabase.from('collaborator_terms') as any).insert({
                     collaborator_id: selectedCollaborator,
                     term_id: termId,
                     sent_at: new Date().toISOString(),
@@ -123,7 +123,7 @@ export default function TermosPage() {
             }
 
             // Create pending action
-            await supabase.from('pending_actions').insert({
+            await (supabase.from('pending_actions') as any).insert({
                 action_type: 'signature_required',
                 title: `Assinatura pendente: ${terms.find((t) => t.id === termId)?.term_title}`,
                 collaborator_id: selectedCollaborator,
@@ -145,8 +145,7 @@ export default function TermosPage() {
         if (!selectedCollaborator) return
 
         try {
-            await supabase
-                .from('collaborator_terms')
+            await (supabase.from('collaborator_terms') as any)
                 .update({
                     signed_at: new Date().toISOString(),
                     ip_address: '127.0.0.1',

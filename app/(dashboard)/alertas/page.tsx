@@ -141,7 +141,7 @@ export default function AlertasPage() {
             // Upsert all configurations
             for (const alert of alerts) {
                 if (alert.id.startsWith('temp-')) {
-                    await supabase.from('alert_configurations').insert({
+                    await (supabase.from('alert_configurations') as any).insert({
                         alert_type: alert.alert_type,
                         name: alert.name,
                         description: alert.description,
@@ -150,8 +150,7 @@ export default function AlertasPage() {
                         channels: alert.channels,
                     })
                 } else {
-                    await supabase
-                        .from('alert_configurations')
+                    await (supabase.from('alert_configurations') as any)
                         .update({
                             enabled: alert.enabled,
                             days_before: alert.days_before,
@@ -320,8 +319,8 @@ export default function AlertasPage() {
                                                         type="button"
                                                         onClick={() => handleChannelToggle(alert.id, 'email')}
                                                         className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${alert.channels.includes('email')
-                                                                ? 'bg-blue-100 text-blue-700'
-                                                                : 'bg-gray-100 text-gray-500'
+                                                            ? 'bg-blue-100 text-blue-700'
+                                                            : 'bg-gray-100 text-gray-500'
                                                             }`}
                                                     >
                                                         <Mail className="w-3 h-3" />
@@ -331,8 +330,8 @@ export default function AlertasPage() {
                                                         type="button"
                                                         onClick={() => handleChannelToggle(alert.id, 'sms')}
                                                         className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${alert.channels.includes('sms')
-                                                                ? 'bg-green-100 text-green-700'
-                                                                : 'bg-gray-100 text-gray-500'
+                                                            ? 'bg-green-100 text-green-700'
+                                                            : 'bg-gray-100 text-gray-500'
                                                             }`}
                                                     >
                                                         <MessageSquare className="w-3 h-3" />

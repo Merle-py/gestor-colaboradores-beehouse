@@ -55,7 +55,7 @@ export default function NovoRecessoPage() {
         setError(null)
 
         try {
-            const { error: insertError } = await supabase.from('recess_requests').insert({
+            const { error: insertError } = await (supabase.from('recess_requests') as any).insert({
                 collaborator_id: form.collaborator_id,
                 request_type: form.request_type,
                 category: form.category || null,

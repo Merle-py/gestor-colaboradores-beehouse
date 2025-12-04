@@ -53,7 +53,7 @@ export default function NovoContratoPage() {
         setError(null)
 
         try {
-            const { error: insertError } = await supabase.from('contracts').insert({
+            const { error: insertError } = await (supabase.from('contracts') as any).insert({
                 collaborator_id: form.collaborator_id,
                 contract_type: form.contract_type,
                 contract_number: form.contract_number || null,
