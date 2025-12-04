@@ -13,24 +13,32 @@ export interface Database {
                 Row: {
                     id: string
                     created_at: string
-                    bitrix_id: number
+                    bitrix_id: number | null
                     full_name: string
+                    email: string | null
+                    department: string | null
                     department_id: number | null
-                    // Add other columns as needed
+                    status: string | null
                 }
                 Insert: {
                     id?: string
                     created_at?: string
-                    bitrix_id: number
+                    bitrix_id?: number | null
                     full_name: string
+                    email?: string | null
+                    department?: string | null
                     department_id?: number | null
+                    status?: string | null
                 }
                 Update: {
                     id?: string
                     created_at?: string
-                    bitrix_id?: number
+                    bitrix_id?: number | null
                     full_name?: string
+                    email?: string | null
+                    department?: string | null
                     department_id?: number | null
+                    status?: string | null
                 }
             }
             audit_logs: {
