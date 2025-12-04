@@ -31,9 +31,14 @@ export async function updateSession(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
+    // Check if there's a token in the URL (means user is being authenticated)
+    const hasToken = request.nextUrl.searchParams.has('token')
+
     // If not logged in and trying to access protected routes, redirect to login
+    // BUT skip if there's a token in the URL (authentication in progress)
     if (
         !user &&
+        !hasToken &&
         !request.nextUrl.pathname.startsWith('/login') &&
         !request.nextUrl.pathname.startsWith('/api')
     ) {
