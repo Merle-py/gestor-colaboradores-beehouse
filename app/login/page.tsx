@@ -167,20 +167,23 @@ function LoginContent() {
         setSuccess(true)
         setStatusMessage('Entrando no sistema...')
 
+        // Store token in localStorage as backup
+        localStorage.setItem('auth_token', token)
+
+        // Set session
         const { error: sessionError } = await supabase.auth.setSession({
             access_token: token,
             refresh_token: token,
         })
 
         if (sessionError) {
-            setError(sessionError.message)
-            setLoading(false)
-            return
+            console.error('Session error:', sessionError)
+            // Even if there's an error, try to redirect with token
         }
 
-        // Use window.location for redirect (works better in iframe)
+        // Redirect with token in URL as fallback
         setTimeout(() => {
-            window.location.href = '/colaboradores'
+            window.location.href = `/colaboradores?token=${encodeURIComponent(token)}`
         }, 500)
     }
 
