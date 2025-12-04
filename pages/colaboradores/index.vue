@@ -49,7 +49,7 @@ const columns = [
   { key: 'departamento', label: 'Departamento' },
   { key: 'tipo_contrato', label: 'Contrato' },
   { key: 'status', label: 'Status' },
-  { key: 'actions' }
+  { key: 'actions', label: 'Ações', sortable: false }
 ]
 
 // Busca dados do Supabase
