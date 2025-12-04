@@ -14,9 +14,6 @@ declare global {
             init: (callback: () => void) => void
             callMethod: (method: string, params: object, callback: (result: any) => void) => void
             getAuth: () => { access_token: string; domain: string; member_id: string } | null
-            placement?: {
-                info: () => { ID: string }
-            }
         }
     }
 }
@@ -26,74 +23,120 @@ function LoginContent() {
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
     const [statusMessage, setStatusMessage] = useState('Conectando ao Bitrix24...')
+    const [debugInfo, setDebugInfo] = useState<string>('')
     const router = useRouter()
     const searchParams = useSearchParams()
     const supabase = createClient()
 
     useEffect(() => {
+        // Log URL params for debugging
+        const params: Record<string, string> = {}
+        searchParams.forEach((value, key) => {
+            params[key] = value
+        })
+        console.log('URL Params:', params)
+        setDebugInfo(JSON.stringify(params, null, 2))
+
         initBitrixAuth()
     }, [])
 
     const initBitrixAuth = async () => {
-        // Check if we have auth params from Bitrix (passed via URL or placement)
-        const authId = searchParams.get('AUTH_ID')
+        // Get params from URL (passed by Bitrix)
+        const memberId = searchParams.get('MEMBER_ID') || searchParams.get('member_id')
+        const authId = searchParams.get('AUTH_ID') || searchParams.get('auth_id')
+        const domain = searchParams.get('DOMAIN') || searchParams.get('domain')
+        const appSid = searchParams.get('APP_SID')
 
-        // Method 1: Check URL params (Bitrix passes these for local apps)
-        if (authId) {
-            setStatusMessage('Autenticando via Bitrix24...')
-            await authenticateWithBitrixToken(authId)
+        console.log('Bitrix params:', { memberId, authId, domain, appSid })
+
+        // Method 1: If we have MEMBER_ID from URL, use it to get user via webhook
+        if (memberId && domain) {
+            setStatusMessage('Obtendo dados do usuário...')
+            await authenticateWithMemberId(memberId, domain)
             return
         }
 
-        // Method 2: Check if BX24 JS SDK is available (app inside Bitrix iframe)
+        // Method 2: Try BX24 SDK if available
         if (typeof window !== 'undefined' && window.BX24) {
             setStatusMessage('Carregando SDK do Bitrix24...')
-            window.BX24.init(() => {
-                window.BX24?.callMethod('user.current', {}, async (result: any) => {
-                    if (result.data && result.data()) {
-                        const user = result.data()
-                        setStatusMessage(`Bem-vindo, ${user.NAME}!`)
-                        await authenticateWithBitrixId(user.ID)
-                    } else {
-                        setError('Não foi possível obter dados do usuário do Bitrix')
-                        setLoading(false)
-                    }
+            try {
+                window.BX24.init(() => {
+                    console.log('BX24 initialized')
+
+                    // Try to get auth info
+                    const auth = window.BX24?.getAuth()
+                    console.log('BX24 auth:', auth)
+
+                    window.BX24?.callMethod('user.current', {}, async (result: any) => {
+                        console.log('BX24 user.current result:', result)
+                        if (result.data && result.data()) {
+                            const user = result.data()
+                            setStatusMessage(`Bem-vindo, ${user.NAME}!`)
+                            await authenticateWithBitrixId(user.ID)
+                        } else if (result.error && result.error()) {
+                            console.error('BX24 error:', result.error())
+                            setError('Erro ao obter usuário: ' + result.error().error_description)
+                            setLoading(false)
+                        } else {
+                            setError('Não foi possível obter dados do usuário')
+                            setLoading(false)
+                        }
+                    })
                 })
-            })
+            } catch (e: any) {
+                console.error('BX24 init error:', e)
+                setError('Erro ao inicializar SDK: ' + e.message)
+                setLoading(false)
+            }
             return
         }
 
-        // Method 3: Try to get user from server-side Bitrix API via webhook
-        const placementId = searchParams.get('PLACEMENT_ID')
-        if (placementId) {
-            setStatusMessage('Validando acesso...')
-            await authenticateWithBitrixId(placementId)
+        // Method 3: Check if we have APP_SID (means we're in Bitrix context but SDK not loaded yet)
+        if (appSid) {
+            setStatusMessage('Aguardando SDK do Bitrix24...')
+            // Wait a bit for SDK to load
+            setTimeout(() => {
+                if (window.BX24) {
+                    initBitrixAuth() // Retry
+                } else {
+                    setError('SDK do Bitrix24 não carregou. Tente recarregar a página.')
+                    setLoading(false)
+                }
+            }, 2000)
             return
         }
 
-        // No Bitrix context detected - show manual login or dev mode
+        // No Bitrix context detected
         setStatusMessage('Bitrix24 não detectado')
         setLoading(false)
     }
 
-    const authenticateWithBitrixToken = async (authToken: string) => {
+    const authenticateWithMemberId = async (memberId: string, domain: string) => {
         try {
-            const response = await fetch('/api/auth/bitrix', {
+            // Call API to get user info using the webhook
+            const response = await fetch('/api/auth/bitrix/user-by-member', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ auth_token: authToken }),
+                body: JSON.stringify({ member_id: memberId, domain }),
             })
 
             const data = await response.json()
 
             if (!response.ok) {
-                throw new Error(data.error || 'Erro na autenticação')
+                // Fallback: try direct authentication with member_id as bitrix_id
+                await authenticateWithBitrixId(memberId)
+                return
             }
 
-            await setSessionAndRedirect(data.token)
+            if (data.user_id) {
+                await authenticateWithBitrixId(data.user_id)
+            } else {
+                throw new Error('User ID not found')
+            }
         } catch (e: any) {
-            setError(e.message)
-            setLoading(false)
+            // Fallback to using member_id directly
+            console.log('Fallback: using member_id as user_id')
+            await authenticateWithBitrixId(memberId)
         }
     }
 
@@ -205,6 +248,14 @@ function LoginContent() {
                         <Button onClick={handleRetry} className="w-full">
                             Tentar Novamente
                         </Button>
+
+                        {/* Debug info */}
+                        <details className="text-xs text-gray-400">
+                            <summary>Debug Info</summary>
+                            <pre className="mt-2 p-2 bg-gray-100 rounded overflow-auto">
+                                {debugInfo}
+                            </pre>
+                        </details>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -227,6 +278,14 @@ function LoginContent() {
                                 Entrar como Admin (Dev)
                             </Button>
                         </div>
+
+                        {/* Debug info */}
+                        <details className="text-xs text-gray-400">
+                            <summary>Debug Info</summary>
+                            <pre className="mt-2 p-2 bg-gray-100 rounded overflow-auto">
+                                {debugInfo}
+                            </pre>
+                        </details>
                     </div>
                 )}
             </CardContent>
