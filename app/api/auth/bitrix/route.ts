@@ -118,20 +118,32 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // 5. Generate JWT token
+        // 5. Generate JWT token with all required Supabase claims
+        const now = Math.floor(Date.now() / 1000)
         const token = jwt.sign(
             {
                 aud: 'authenticated',
-                role: 'authenticated',
+                exp: now + 60 * 60 * 24, // 24 hours
+                iat: now,
+                iss: `https://${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', '')}/auth/v1`,
                 sub: authUserId,
                 email: email,
+                phone: '',
+                app_metadata: {
+                    provider: 'email',
+                    providers: ['email'],
+                },
                 user_metadata: {
                     bitrix_id: parseInt(bitrix_id),
                     full_name: fullName,
                 },
-                exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24 hours
+                role: 'authenticated',
+                aal: 'aal1',
+                amr: [{ method: 'password', timestamp: now }],
+                session_id: authUserId,
             },
-            jwtSecret
+            jwtSecret,
+            { algorithm: 'HS256' }
         )
 
         return NextResponse.json({
