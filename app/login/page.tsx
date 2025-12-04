@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, Building2, AlertCircle, CheckCircle } from 'lucide-react'
@@ -20,7 +21,7 @@ declare global {
     }
 }
 
-export default function LoginPage() {
+function LoginContent() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
@@ -36,7 +37,6 @@ export default function LoginPage() {
     const initBitrixAuth = async () => {
         // Check if we have auth params from Bitrix (passed via URL or placement)
         const authId = searchParams.get('AUTH_ID')
-        const memberId = searchParams.get('member_id') || searchParams.get('DOMAIN')
 
         // Method 1: Check URL params (Bitrix passes these for local apps)
         if (authId) {
@@ -64,7 +64,6 @@ export default function LoginPage() {
         }
 
         // Method 3: Try to get user from server-side Bitrix API via webhook
-        // This is for when the app is accessed directly with MEMBER_ID in URL
         const placementId = searchParams.get('PLACEMENT_ID')
         if (placementId) {
             setStatusMessage('Validando acesso...')
@@ -169,72 +168,85 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-md shadow-xl border-0">
-                <CardHeader className="text-center pb-2">
-                    <div className="mx-auto w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mb-4">
-                        <Building2 className="w-8 h-8 text-primary-600" />
-                    </div>
-                    <CardTitle className="text-2xl font-bold text-gray-900">
-                        Gestor de Colaboradores
-                    </CardTitle>
-                    <CardDescription>
-                        Sistema de gestão de RH - Beehouse
-                    </CardDescription>
-                </CardHeader>
+        <Card className="w-full max-w-md shadow-xl border-0">
+            <CardHeader className="text-center pb-2">
+                <div className="mx-auto w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mb-4">
+                    <Building2 className="w-8 h-8 text-primary-600" />
+                </div>
+                <CardTitle className="text-2xl font-bold text-gray-900">
+                    Gestor de Colaboradores
+                </CardTitle>
+                <CardDescription>
+                    Sistema de gestão de RH - Beehouse
+                </CardDescription>
+            </CardHeader>
 
-                <CardContent className="space-y-6">
-                    {success ? (
-                        <div className="text-center py-8">
-                            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                            <p className="text-lg font-medium text-gray-900">{statusMessage}</p>
-                            <Loader2 className="w-5 h-5 animate-spin mx-auto mt-4 text-gray-400" />
-                        </div>
-                    ) : loading ? (
-                        <div className="text-center py-8">
-                            <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
-                            <p className="text-gray-600">{statusMessage}</p>
-                        </div>
-                    ) : error ? (
-                        <div className="space-y-4">
-                            <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-                                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-sm font-medium text-red-800">Erro</p>
-                                    <p className="text-sm text-red-600">{error}</p>
-                                </div>
+            <CardContent className="space-y-6">
+                {success ? (
+                    <div className="text-center py-8">
+                        <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                        <p className="text-lg font-medium text-gray-900">{statusMessage}</p>
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto mt-4 text-gray-400" />
+                    </div>
+                ) : loading ? (
+                    <div className="text-center py-8">
+                        <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
+                        <p className="text-gray-600">{statusMessage}</p>
+                    </div>
+                ) : error ? (
+                    <div className="space-y-4">
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-sm font-medium text-red-800">Erro</p>
+                                <p className="text-sm text-red-600">{error}</p>
                             </div>
-                            <Button onClick={handleRetry} className="w-full">
-                                Tentar Novamente
+                        </div>
+                        <Button onClick={handleRetry} className="w-full">
+                            Tentar Novamente
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                            <p className="text-sm text-amber-800">
+                                <strong>Acesso via Bitrix24:</strong> Este aplicativo deve ser acessado
+                                através do menu de aplicativos do Bitrix24.
+                            </p>
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-200">
+                            <p className="text-xs text-gray-400 text-center mb-3">
+                                Modo Desenvolvimento
+                            </p>
+                            <Button
+                                onClick={handleDevLogin}
+                                variant="outline"
+                                className="w-full"
+                            >
+                                Entrar como Admin (Dev)
                             </Button>
                         </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                                <p className="text-sm text-amber-800">
-                                    <strong>Acesso via Bitrix24:</strong> Este aplicativo deve ser acessado
-                                    através do menu de aplicativos do Bitrix24.
-                                </p>
-                            </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    )
+}
 
-                            {process.env.NODE_ENV === 'development' && (
-                                <div className="pt-4 border-t border-gray-200">
-                                    <p className="text-xs text-gray-400 text-center mb-3">
-                                        Modo Desenvolvimento
-                                    </p>
-                                    <Button
-                                        onClick={handleDevLogin}
-                                        variant="outline"
-                                        className="w-full"
-                                    >
-                                        Entrar como Admin (Dev)
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+export default function LoginPage() {
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex items-center justify-center p-4">
+            <Suspense fallback={
+                <Card className="w-full max-w-md shadow-xl border-0">
+                    <CardContent className="py-12 text-center">
+                        <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
+                        <p className="text-gray-600">Carregando...</p>
+                    </CardContent>
+                </Card>
+            }>
+                <LoginContent />
+            </Suspense>
         </div>
     )
 }
