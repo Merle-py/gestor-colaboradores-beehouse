@@ -1,9 +1,7 @@
 {
-  "/api/auth/dev/route": "app/api/auth/dev/route.js",
-  "/page": "app/page.js",
-  "/login/page": "app/login/page.js",
-  "/(dashboard)/documentos/page": "app/(dashboard)/documentos/page.js",
-  "/(dashboard)/financeiro/page": "app/(dashboard)/financeiro/page.js",
-  "/(dashboard)/relatorios/page": "app/(dashboard)/relatorios/page.js",
+  "/(dashboard)/contratos/novo/page": "app/(dashboard)/contratos/novo/page.js",
+  "/(dashboard)/perfil/page": "app/(dashboard)/perfil/page.js",
+  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/(dashboard)/colaboradores/[id]/editar/page": "app/(dashboard)/colaboradores/[id]/editar/page.js",
   "/(dashboard)/colaboradores/page": "app/(dashboard)/colaboradores/page.js"
 }

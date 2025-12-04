@@ -3,7 +3,22 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Check, User, Briefcase, Mail, Phone, CreditCard, Building2 } from 'lucide-react'
+import {
+    ArrowLeft,
+    Check,
+    User,
+    Briefcase,
+    Mail,
+    Phone,
+    CreditCard,
+    Building2,
+    MapPin,
+    Calendar,
+    DollarSign,
+    ChevronRight,
+    FileText,
+    Loader2
+} from 'lucide-react'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,12 +31,13 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
+import type { ContractType } from '@/types/database.types'
 
 const schema = z.object({
     full_name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
     email: z.string().email('Email inválido'),
     department: z.string().min(1, 'Selecione um departamento'),
-    role: z.string().min(1, 'Cargo é obrigatório'),
+    position: z.string().min(1, 'Cargo é obrigatório'),
     cpf: z.string().optional(),
     phone: z.string().optional(),
 })
@@ -34,25 +50,75 @@ const departmentsList = [
     'Operacional',
     'RH',
     'TI',
+    'Jurídico',
+    'Engenharia',
 ]
+
+type Step = 'personal' | 'contract' | 'documents'
 
 export default function NovoColaboradorPage() {
     const router = useRouter()
     const supabase = createClient()
     const [loading, setLoading] = useState(false)
+    const [currentStep, setCurrentStep] = useState<Step>('personal')
     const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
+    // Personal Data
     const [formData, setFormData] = useState({
         full_name: '',
         email: '',
         cpf: '',
+        rg: '',
         phone: '',
+        birth_date: '',
         department: '',
-        role: '',
+        position: '',
+        address_street: '',
+        address_city: '',
+        address_state: '',
+        address_zip: '',
+    })
+
+    // Contract Data
+    const [contractData, setContractData] = useState({
+        create_contract: true,
+        contract_type: 'CLT' as ContractType,
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: '',
+        monthly_value: '',
+        payment_day: '5',
+        work_hours_per_week: '40',
     })
 
     const handleChange = (field: string, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }))
+    }
+
+    const handleContractChange = (field: string, value: string | boolean) => {
+        setContractData((prev) => ({ ...prev, [field]: value }))
+    }
+
+    const nextStep = () => {
+        if (currentStep === 'personal') {
+            // Validate personal data
+            try {
+                schema.parse(formData)
+                setCurrentStep('contract')
+                setFeedback(null)
+            } catch (e: any) {
+                if (e instanceof z.ZodError) {
+                    setFeedback({ message: e.errors[0].message, type: 'error' })
+                }
+            }
+        } else if (currentStep === 'contract') {
+            setCurrentStep('documents')
+            setFeedback(null)
+        }
+    }
+
+    const prevStep = () => {
+        if (currentStep === 'contract') setCurrentStep('personal')
+        else if (currentStep === 'documents') setCurrentStep('contract')
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -61,53 +127,123 @@ export default function NovoColaboradorPage() {
         setFeedback(null)
 
         try {
-            const validated = schema.parse(formData)
+            // Insert collaborator
+            const { data: collab, error: collabError } = await supabase
+                .from('collaborators')
+                .insert({
+                    full_name: formData.full_name,
+                    email: formData.email,
+                    cpf: formData.cpf || null,
+                    rg: formData.rg || null,
+                    phone: formData.phone || null,
+                    birth_date: formData.birth_date || null,
+                    department: formData.department,
+                    position: formData.position,
+                    contract_type: contractData.contract_type,
+                    hire_date: contractData.start_date,
+                    address_street: formData.address_street || null,
+                    address_city: formData.address_city || null,
+                    address_state: formData.address_state || null,
+                    address_zip: formData.address_zip || null,
+                    status: 'ativo',
+                })
+                .select()
+                .single()
 
-            const { error } = await supabase.from('collaborators').insert({
-                full_name: validated.full_name,
-                email: validated.email,
-                status: 'ativo',
-                department: validated.department,
-            })
+            if (collabError) throw collabError
 
-            if (error) throw error
+            // Insert contract if enabled
+            if (contractData.create_contract && collab) {
+                const { error: contractError } = await supabase.from('contracts').insert({
+                    collaborator_id: collab.id,
+                    contract_type: contractData.contract_type,
+                    start_date: contractData.start_date,
+                    end_date: contractData.end_date || null,
+                    monthly_value: contractData.monthly_value ? parseFloat(contractData.monthly_value) : null,
+                    payment_day: parseInt(contractData.payment_day),
+                    work_hours_per_week: parseInt(contractData.work_hours_per_week),
+                    status: 'active',
+                })
+
+                if (contractError) throw contractError
+            }
+
+            // Create pending action for documents
+            if (collab) {
+                await supabase.from('pending_actions').insert({
+                    action_type: 'document_upload',
+                    title: `Documentos pendentes: ${formData.full_name}`,
+                    description: 'Colaborador admitido. Aguardando upload de documentos.',
+                    status: 'pending',
+                    priority: 7,
+                    module: 'Documentos',
+                    collaborator_id: collab.id,
+                })
+            }
 
             setFeedback({ message: 'Colaborador cadastrado com sucesso!', type: 'success' })
-            setTimeout(() => router.push('/colaboradores'), 800)
+            setTimeout(() => router.push('/colaboradores'), 1000)
         } catch (e: any) {
             console.error(e)
-            if (e instanceof z.ZodError) {
-                setFeedback({ message: e.errors[0].message, type: 'error' })
-            } else {
-                setFeedback({ message: 'Erro: ' + (e.message || e), type: 'error' })
-            }
+            setFeedback({ message: 'Erro: ' + (e.message || e), type: 'error' })
         } finally {
             setLoading(false)
         }
     }
 
+    const steps = [
+        { id: 'personal', label: 'Dados Pessoais', icon: User },
+        { id: 'contract', label: 'Contrato', icon: Briefcase },
+        { id: 'documents', label: 'Finalizar', icon: FileText },
+    ]
+
     return (
-        <div className="max-w-5xl mx-auto py-10 px-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-                <div className="flex items-center gap-4">
-                    <Link href="/colaboradores">
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="rounded-full shadow-sm border border-gray-200 text-gray-700 hover:bg-gray-50"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                            Novo Colaborador
-                        </h1>
-                        <p className="text-lg text-gray-500 mt-1">
-                            Preencha a ficha cadastral para admissão.
-                        </p>
-                    </div>
+        <div className="max-w-4xl mx-auto py-8 px-6">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-8">
+                <Link href="/colaboradores">
+                    <Button variant="ghost" size="icon" className="rounded-full">
+                        <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                </Link>
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Nova Admissão</h1>
+                    <p className="text-gray-500">Cadastro completo com contrato</p>
                 </div>
+            </div>
+
+            {/* Step Indicator */}
+            <div className="flex items-center justify-center mb-10">
+                {steps.map((step, index) => {
+                    const Icon = step.icon
+                    const isActive = step.id === currentStep
+                    const isCompleted =
+                        (currentStep === 'contract' && step.id === 'personal') ||
+                        (currentStep === 'documents' && (step.id === 'personal' || step.id === 'contract'))
+
+                    return (
+                        <div key={step.id} className="flex items-center">
+                            <div
+                                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${isActive
+                                        ? 'bg-primary-500 text-black font-bold shadow-lg'
+                                        : isCompleted
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-gray-100 text-gray-400'
+                                    }`}
+                            >
+                                {isCompleted ? (
+                                    <Check className="w-4 h-4" />
+                                ) : (
+                                    <Icon className="w-4 h-4" />
+                                )}
+                                <span className="text-sm hidden sm:inline">{step.label}</span>
+                            </div>
+                            {index < steps.length - 1 && (
+                                <ChevronRight className="w-5 h-5 mx-2 text-gray-300" />
+                            )}
+                        </div>
+                    )
+                })}
             </div>
 
             {feedback && (
@@ -118,128 +254,307 @@ export default function NovoColaboradorPage() {
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Dados Pessoais */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 relative">
-                    <div className="absolute left-0 top-8 w-1.5 h-12 bg-[#f9b410] rounded-r-full" />
-                    <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <User className="w-7 h-7 text-[#f9b410]" />
-                        Dados Pessoais
-                    </h3>
+            <form onSubmit={handleSubmit}>
+                {/* Step 1: Personal Data */}
+                {currentStep === 'personal' && (
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
+                        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 border-b pb-4">
+                            <User className="w-6 h-6 text-primary-500" />
+                            Dados Pessoais
+                        </h3>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-900">
-                                Nome Completo <span className="text-red-500">*</span>
-                            </label>
-                            <Input
-                                icon={User}
-                                value={formData.full_name}
-                                onChange={(e) => handleChange('full_name', e.target.value)}
-                                placeholder="Ex: Maria Silva"
-                                className="h-12"
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-900">
+                                    Nome Completo <span className="text-red-500">*</span>
+                                </label>
+                                <Input
+                                    icon={User}
+                                    value={formData.full_name}
+                                    onChange={(e) => handleChange('full_name', e.target.value)}
+                                    placeholder="Ex: Maria Silva"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-900">
+                                    Email <span className="text-red-500">*</span>
+                                </label>
+                                <Input
+                                    icon={Mail}
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => handleChange('email', e.target.value)}
+                                    placeholder="email@beehouse.com"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-900">CPF</label>
+                                <Input
+                                    icon={CreditCard}
+                                    value={formData.cpf}
+                                    onChange={(e) => handleChange('cpf', e.target.value)}
+                                    placeholder="000.000.000-00"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-900">RG</label>
+                                <Input
+                                    value={formData.rg}
+                                    onChange={(e) => handleChange('rg', e.target.value)}
+                                    placeholder="00.000.000-0"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-900">Telefone</label>
+                                <Input
+                                    icon={Phone}
+                                    value={formData.phone}
+                                    onChange={(e) => handleChange('phone', e.target.value)}
+                                    placeholder="(11) 99999-9999"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-900">Data de Nascimento</label>
+                                <Input
+                                    type="date"
+                                    value={formData.birth_date}
+                                    onChange={(e) => handleChange('birth_date', e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-900">
+                                    Departamento <span className="text-red-500">*</span>
+                                </label>
+                                <Select value={formData.department} onValueChange={(v) => handleChange('department', v)}>
+                                    <SelectTrigger>
+                                        <Building2 className="w-4 h-4 mr-2 text-gray-400" />
+                                        <SelectValue placeholder="Selecione..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {departmentsList.map((dept) => (
+                                            <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-bold text-gray-900">
+                                    Cargo <span className="text-red-500">*</span>
+                                </label>
+                                <Input
+                                    icon={Briefcase}
+                                    value={formData.position}
+                                    onChange={(e) => handleChange('position', e.target.value)}
+                                    placeholder="Ex: Desenvolvedor"
+                                />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-900">
-                                Email <span className="text-red-500">*</span>
-                            </label>
-                            <Input
-                                icon={Mail}
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => handleChange('email', e.target.value)}
-                                placeholder="nome@beehouse.com"
-                                className="h-12"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-900">CPF</label>
-                            <Input
-                                icon={CreditCard}
-                                value={formData.cpf}
-                                onChange={(e) => handleChange('cpf', e.target.value)}
-                                placeholder="000.000.000-00"
-                                className="h-12"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-900">
-                                Telefone
-                            </label>
-                            <Input
-                                icon={Phone}
-                                value={formData.phone}
-                                onChange={(e) => handleChange('phone', e.target.value)}
-                                placeholder="(11) 99999-9999"
-                                className="h-12"
-                            />
+
+                        {/* Address */}
+                        <div className="pt-4 border-t">
+                            <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <MapPin className="w-5 h-5 text-gray-500" />
+                                Endereço
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="md:col-span-2 space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Rua</label>
+                                    <Input
+                                        value={formData.address_street}
+                                        onChange={(e) => handleChange('address_street', e.target.value)}
+                                        placeholder="Rua, número, complemento"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Cidade</label>
+                                    <Input
+                                        value={formData.address_city}
+                                        onChange={(e) => handleChange('address_city', e.target.value)}
+                                        placeholder="Cidade"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Estado</label>
+                                    <Input
+                                        value={formData.address_state}
+                                        onChange={(e) => handleChange('address_state', e.target.value)}
+                                        placeholder="UF"
+                                        maxLength={2}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
-                {/* Dados Contratuais */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 relative overflow-visible z-10">
-                    <div className="absolute left-0 top-8 w-1.5 h-12 bg-zinc-800 rounded-r-full" />
+                {/* Step 2: Contract */}
+                {currentStep === 'contract' && (
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
+                        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 border-b pb-4">
+                            <Briefcase className="w-6 h-6 text-primary-500" />
+                            Dados do Contrato
+                        </h3>
 
-                    <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <Briefcase className="w-7 h-7 text-gray-700" />
-                        Dados Contratuais
-                    </h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-900">
-                                Departamento <span className="text-red-500">*</span>
+                        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                            <input
+                                type="checkbox"
+                                id="create_contract"
+                                checked={contractData.create_contract}
+                                onChange={(e) => handleContractChange('create_contract', e.target.checked)}
+                                className="w-5 h-5 rounded border-gray-300"
+                            />
+                            <label htmlFor="create_contract" className="font-medium text-gray-800">
+                                Criar contrato automaticamente para este colaborador
                             </label>
-                            <Select
-                                value={formData.department}
-                                onValueChange={(value) => handleChange('department', value)}
-                            >
-                                <SelectTrigger className="h-12">
-                                    <Building2 className="w-4 h-4 mr-2 text-gray-400" />
-                                    <SelectValue placeholder="Selecione um departamento..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {departmentsList.map((dept) => (
-                                        <SelectItem key={dept} value={dept}>
-                                            {dept}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="block text-sm font-bold text-gray-900">
-                                Cargo <span className="text-red-500">*</span>
-                            </label>
-                            <Input
-                                icon={Briefcase}
-                                value={formData.role}
-                                onChange={(e) => handleChange('role', e.target.value)}
-                                placeholder="Ex: Desenvolvedor"
-                                className="h-12"
-                            />
+                        {contractData.create_contract && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-gray-900">Tipo de Contrato</label>
+                                    <Select
+                                        value={contractData.contract_type}
+                                        onValueChange={(v) => handleContractChange('contract_type', v)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="CLT">CLT</SelectItem>
+                                            <SelectItem value="PJ">PJ</SelectItem>
+                                            <SelectItem value="Estagiário">Estagiário</SelectItem>
+                                            <SelectItem value="Temporário">Temporário</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-gray-900">Data de Início</label>
+                                    <Input
+                                        type="date"
+                                        value={contractData.start_date}
+                                        onChange={(e) => handleContractChange('start_date', e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-gray-900">Data de Término</label>
+                                    <Input
+                                        type="date"
+                                        value={contractData.end_date}
+                                        onChange={(e) => handleContractChange('end_date', e.target.value)}
+                                    />
+                                    <p className="text-xs text-gray-500">Deixe vazio para contrato indeterminado</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-gray-900">Valor Mensal (R$)</label>
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        value={contractData.monthly_value}
+                                        onChange={(e) => handleContractChange('monthly_value', e.target.value)}
+                                        placeholder="0,00"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-gray-900">Dia do Pagamento</label>
+                                    <Input
+                                        type="number"
+                                        min="1"
+                                        max="31"
+                                        value={contractData.payment_day}
+                                        onChange={(e) => handleContractChange('payment_day', e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-gray-900">Horas Semanais</label>
+                                    <Input
+                                        type="number"
+                                        value={contractData.work_hours_per_week}
+                                        onChange={(e) => handleContractChange('work_hours_per_week', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Step 3: Review & Finalize */}
+                {currentStep === 'documents' && (
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 space-y-6">
+                        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 border-b pb-4">
+                            <FileText className="w-6 h-6 text-primary-500" />
+                            Resumo da Admissão
+                        </h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="p-4 bg-gray-50 rounded-xl">
+                                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <User className="w-4 h-4" />
+                                    Colaborador
+                                </h4>
+                                <p className="text-gray-900 font-medium">{formData.full_name}</p>
+                                <p className="text-sm text-gray-600">{formData.email}</p>
+                                <p className="text-sm text-gray-600">{formData.department} - {formData.position}</p>
+                            </div>
+
+                            {contractData.create_contract && (
+                                <div className="p-4 bg-blue-50 rounded-xl">
+                                    <h4 className="font-bold text-blue-800 mb-3 flex items-center gap-2">
+                                        <Briefcase className="w-4 h-4" />
+                                        Contrato
+                                    </h4>
+                                    <p className="text-blue-900 font-medium">{contractData.contract_type}</p>
+                                    <p className="text-sm text-blue-700">Início: {new Date(contractData.start_date).toLocaleDateString('pt-BR')}</p>
+                                    {contractData.monthly_value && (
+                                        <p className="text-sm text-blue-700">Valor: R$ {parseFloat(contractData.monthly_value).toLocaleString('pt-BR')}</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                            <h4 className="font-bold text-amber-800 mb-2">📋 Próximos Passos</h4>
+                            <ul className="text-sm text-amber-700 space-y-1">
+                                <li>• Upload de documentos será solicitado após o cadastro</li>
+                                <li>• Assinatura de termos pendente</li>
+                                <li>• Entrega de EPIs/materiais</li>
+                            </ul>
                         </div>
                     </div>
-                </div>
+                )}
 
-                <div className="flex items-center justify-end gap-4 pt-6">
-                    <Link href="/colaboradores">
-                        <Button variant="ghost" size="lg">
-                            Cancelar
-                        </Button>
-                    </Link>
-                    <Button
-                        type="submit"
-                        size="lg"
-                        loading={loading}
-                        className="px-10 font-bold text-black shadow-lg shadow-[#f9b410]/30 hover:scale-[1.02] transition-transform"
-                    >
-                        <Check className="w-5 h-5 mr-2" />
-                        Salvar Cadastro
-                    </Button>
+                {/* Navigation Buttons */}
+                <div className="flex items-center justify-between mt-8">
+                    <div>
+                        {currentStep !== 'personal' && (
+                            <Button type="button" variant="ghost" onClick={prevStep}>
+                                <ArrowLeft className="w-4 h-4 mr-2" />
+                                Voltar
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="flex gap-3">
+                        <Link href="/colaboradores">
+                            <Button type="button" variant="outline">Cancelar</Button>
+                        </Link>
+
+                        {currentStep !== 'documents' ? (
+                            <Button type="button" onClick={nextStep}>
+                                Próximo
+                                <ChevronRight className="w-4 h-4 ml-2" />
+                            </Button>
+                        ) : (
+                            <Button type="submit" disabled={loading}>
+                                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+                                Finalizar Admissão
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </form>
         </div>

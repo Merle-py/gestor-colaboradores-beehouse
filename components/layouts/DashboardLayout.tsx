@@ -16,6 +16,7 @@ import {
     Menu,
     LogOut,
     User,
+    Briefcase,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,10 +35,13 @@ const navLinks = [
     { label: 'Dashboard', icon: LayoutGrid, href: '/' },
     { label: 'Colaboradores', icon: Users, href: '/colaboradores' },
     { label: 'Admissão & Docs', icon: FileText, href: '/documentos' },
-    { label: 'Ausências', icon: Calendar, href: '/ausencias' },
+    { label: 'Contratos', icon: Briefcase, href: '/contratos' },
+    { label: 'Recessos', icon: Calendar, href: '/recessos' },
     { label: 'Materiais & EPIs', icon: Package, href: '/materiais' },
     { label: 'Financeiro', icon: Banknote, href: '/financeiro' },
     { label: 'Relatórios', icon: BarChart3, href: '/relatorios' },
+    { label: 'Alertas', icon: BarChart3, href: '/alertas' },
+    { label: 'Meu Perfil', icon: Users, href: '/perfil' },
 ]
 
 export default function DashboardLayout({
