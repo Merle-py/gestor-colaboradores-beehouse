@@ -1,17 +1,13 @@
-// middleware/auth.global.ts
-export default defineNuxtRouteMiddleware((to, from) => {
+export default defineNuxtRouteMiddleware((to) => {
     const user = useSupabaseUser()
 
-    // Lista de rotas públicas (que não precisam de login)
-    const publicRoutes = ['/login']
-
-    // Se o usuário NÃO estiver logado e tentar acessar uma página protegida
-    if (!user.value && !publicRoutes.includes(to.path)) {
-        return navigateTo('/login')
-    }
-
-    // Se o usuário JÁ estiver logado e tentar ir para o login
+    // Se estiver na página de login, e o usuário estiver logado, manda pra home
     if (user.value && to.path === '/login') {
         return navigateTo('/')
+    }
+
+    // Se NÃO estiver logado, e tentar acessar qualquer outra página, manda pro login
+    if (!user.value && to.path !== '/login') {
+        return navigateTo('/login')
     }
 })
