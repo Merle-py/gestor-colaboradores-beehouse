@@ -178,9 +178,9 @@ function LoginContent() {
             return
         }
 
+        // Use window.location for redirect (works better in iframe)
         setTimeout(() => {
-            router.push('/')
-            router.refresh()
+            window.location.href = '/colaboradores'
         }, 500)
     }
 
