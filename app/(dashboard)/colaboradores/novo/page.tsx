@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -62,6 +62,7 @@ export default function NovoColaboradorPage() {
     const [loading, setLoading] = useState(false)
     const [currentStep, setCurrentStep] = useState<Step>('personal')
     const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+    const isSubmitting = useRef(false) // Prevent double submission
 
     // Personal Data
     const [formData, setFormData] = useState({
@@ -124,8 +125,9 @@ export default function NovoColaboradorPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        // Prevent double submission
-        if (loading) return
+        // Prevent double submission using both ref and state
+        if (isSubmitting.current || loading) return
+        isSubmitting.current = true
 
         setLoading(true)
         setFeedback(null)
