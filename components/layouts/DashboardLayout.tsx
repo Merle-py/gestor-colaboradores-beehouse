@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { NotificationsDropdown } from '@/components/notifications/NotificationsDropdown'
 
 const navLinks = [
     { label: 'Dashboard', icon: LayoutGrid, href: '/' },
@@ -330,6 +331,9 @@ export default function DashboardLayout({
                                 className="w-full rounded-full bg-gray-50 border-gray-200 h-8 text-sm"
                             />
                         </div>
+
+                        {/* Notifications */}
+                        <NotificationsDropdown />
 
                         {/* Quick Add Menu */}
                         <DropdownMenu>

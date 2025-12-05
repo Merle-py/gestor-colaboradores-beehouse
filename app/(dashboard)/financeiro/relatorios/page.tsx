@@ -3,17 +3,19 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
-    ArrowLeft,
-    Download,
     FileText,
-    BarChart3,
-    Table,
+    Download,
     Calendar,
-    Loader2,
-    CheckCircle,
-    TrendingUp,
     Users,
     DollarSign,
+    TrendingUp,
+    TrendingDown,
+    Loader2,
+    Filter,
+    BarChart3,
+    Receipt,
+    CreditCard,
+    Building2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -25,31 +27,28 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
-import { createClient } from '@/lib/supabase/client'
+import { Input } from '@/components/ui/input'
 
 interface ReportData {
-    totalCollaborators: number
-    totalPJ: number
-    totalCLT: number
-    totalMaterials: number
-    departments: { name: string; cost: number; count: number }[]
-    monthlyTrend: { month: string; value: number }[]
+    collaborators: any[]
+    contracts: any[]
+    bills: any[]
+    summary: {
+        totalCollaborators: number
+        totalCLT: number
+        totalPJ: number
+        totalPayroll: number
+        totalBillsPending: number
+        totalBillsPaid: number
+    }
 }
 
 export default function RelatoriosPage() {
-    const supabase = createClient()
     const [loading, setLoading] = useState(true)
-    const [reportType, setReportType] = useState('monthly')
-    const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7))
-    const [data, setData] = useState<ReportData>({
-        totalCollaborators: 0,
-        totalPJ: 0,
-        totalCLT: 0,
-        totalMaterials: 0,
-        departments: [],
-        monthlyTrend: [],
-    })
-    const [exporting, setExporting] = useState(false)
+    const [generating, setGenerating] = useState(false)
+    const [data, setData] = useState<ReportData | null>(null)
+    const [period, setPeriod] = useState('current')
+    const [reportType, setReportType] = useState('payroll')
 
     useEffect(() => {
         fetchData()
@@ -57,55 +56,47 @@ export default function RelatoriosPage() {
 
     const fetchData = async () => {
         setLoading(true)
+        try {
+            const token = localStorage.getItem('auth_token')
+            const headers = { 'Authorization': `Bearer ${token}` }
 
-        const { data: contracts } = await (supabase.from('contracts') as any)
-            .select('*, collaborator:collaborators(full_name, department)')
-            .eq('status', 'active')
+            // Fetch collaborators
+            const collabRes = await fetch('/api/collaborators', { headers })
+            const collabData = await collabRes.json()
 
-        if (contracts) {
-            const pjTotal = contracts
-                .filter((c: any) => c.contract_type === 'PJ')
-                .reduce((sum: number, c: any) => sum + (c.monthly_value || 0), 0)
+            // Fetch contracts
+            const contractsRes = await fetch('/api/contracts', { headers })
+            const contractsData = await contractsRes.json()
 
-            const cltTotal = contracts
-                .filter((c: any) => c.contract_type === 'CLT')
-                .reduce((sum: number, c: any) => sum + (c.monthly_value || 0), 0)
+            // Fetch bills
+            const billsRes = await fetch('/api/bills', { headers })
+            const billsData = await billsRes.json()
 
-            // Group by department
-            const deptMap: Record<string, { cost: number; count: number }> = {}
-            contracts.forEach((c: any) => {
-                const dept = c.collaborator?.department || 'Sem Departamento'
-                if (!deptMap[dept]) {
-                    deptMap[dept] = { cost: 0, count: 0 }
-                }
-                deptMap[dept].cost += c.monthly_value || 0
-                deptMap[dept].count++
-            })
+            const collaborators = collabData.data || []
+            const contracts = contractsData.data || []
+            const bills = billsData.data || []
 
-            const departments = Object.entries(deptMap).map(([name, d]) => ({
-                name,
-                cost: d.cost,
-                count: d.count,
-            })).sort((a, b) => b.cost - a.cost)
-
-            // Mock monthly trend
-            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun']
-            const baseValue = pjTotal + cltTotal
-            const monthlyTrend = months.map(month => ({
-                month,
-                value: baseValue * (0.85 + Math.random() * 0.3),
-            }))
+            // Calculate summary
+            const activeContracts = contracts.filter((c: any) => c.status === 'active')
+            const cltContracts = activeContracts.filter((c: any) => c.contract_type === 'CLT')
+            const pjContracts = activeContracts.filter((c: any) => c.contract_type === 'PJ')
 
             setData({
-                totalCollaborators: contracts.length,
-                totalPJ: pjTotal,
-                totalCLT: cltTotal,
-                totalMaterials: 0,
-                departments,
-                monthlyTrend,
+                collaborators,
+                contracts,
+                bills,
+                summary: {
+                    totalCollaborators: collaborators.filter((c: any) => c.status === 'ativo').length,
+                    totalCLT: cltContracts.length,
+                    totalPJ: pjContracts.length,
+                    totalPayroll: activeContracts.reduce((sum: number, c: any) => sum + (c.monthly_value || 0), 0),
+                    totalBillsPending: bills.filter((b: any) => b.status === 'pending' || b.status === 'overdue').reduce((sum: number, b: any) => sum + (b.amount || 0), 0),
+                    totalBillsPaid: bills.filter((b: any) => b.status === 'paid').reduce((sum: number, b: any) => sum + (b.amount || 0), 0),
+                },
             })
+        } catch (error) {
+            console.error('Error fetching data:', error)
         }
-
         setLoading(false)
     }
 
@@ -113,39 +104,132 @@ export default function RelatoriosPage() {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
     }
 
-    const handleExport = async (format: 'csv' | 'pdf') => {
-        setExporting(true)
+    const generatePDF = async (type: string) => {
+        setGenerating(true)
 
-        // Simulate export delay
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        try {
+            // Dynamic import for client-side only
+            const jsPDF = (await import('jspdf')).default
+            const autoTable = (await import('jspdf-autotable')).default
 
-        if (format === 'csv') {
-            // Create CSV content
-            let csv = 'Departamento,Colaboradores,Custo Total\n'
-            data.departments.forEach(dept => {
-                csv += `${dept.name},${dept.count},${dept.cost}\n`
-            })
-            csv += `\nTotal,${data.totalCollaborators},${data.totalPJ + data.totalCLT}\n`
+            const doc = new jsPDF()
+            const today = new Date().toLocaleDateString('pt-BR')
+
+            // Header
+            doc.setFontSize(20)
+            doc.setTextColor(59, 130, 246)
+            doc.text('BEEHOUSE', 14, 20)
+            doc.setFontSize(10)
+            doc.setTextColor(100)
+            doc.text('Gestão de Colaboradores', 14, 26)
+            doc.text(`Gerado em: ${today}`, 14, 32)
+
+            if (type === 'payroll') {
+                // Payroll Report
+                doc.setFontSize(16)
+                doc.setTextColor(0)
+                doc.text('Relatório de Folha de Pagamento', 14, 45)
+
+                const activeContracts = data?.contracts.filter((c: any) => c.status === 'active') || []
+
+                const tableData = activeContracts.map((c: any) => [
+                    c.collaborator?.full_name || 'N/A',
+                    c.contract_type,
+                    formatCurrency(c.monthly_value || 0),
+                    c.payment_day ? `Dia ${c.payment_day}` : '-',
+                ])
+
+                autoTable(doc, {
+                    startY: 55,
+                    head: [['Colaborador', 'Tipo', 'Valor Mensal', 'Pagamento']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: [59, 130, 246] },
+                    footStyles: { fillColor: [229, 231, 235] },
+                    foot: [['TOTAL', '', formatCurrency(data?.summary.totalPayroll || 0), '']],
+                })
+
+                // Summary
+                const finalY = (doc as any).lastAutoTable.finalY + 15
+                doc.setFontSize(12)
+                doc.text('Resumo:', 14, finalY)
+                doc.setFontSize(10)
+                doc.text(`CLT: ${data?.summary.totalCLT || 0} colaboradores`, 14, finalY + 8)
+                doc.text(`PJ: ${data?.summary.totalPJ || 0} colaboradores`, 14, finalY + 14)
+
+            } else if (type === 'bills') {
+                // Bills Report
+                doc.setFontSize(16)
+                doc.setTextColor(0)
+                doc.text('Relatório de Contas a Pagar', 14, 45)
+
+                const pendingBills = data?.bills.filter((b: any) => b.status !== 'paid') || []
+
+                const tableData = pendingBills.map((b: any) => [
+                    b.description,
+                    b.category || '-',
+                    formatCurrency(b.amount || 0),
+                    new Date(b.due_date).toLocaleDateString('pt-BR'),
+                    b.status === 'overdue' ? 'VENCIDA' : 'Pendente',
+                ])
+
+                autoTable(doc, {
+                    startY: 55,
+                    head: [['Descrição', 'Categoria', 'Valor', 'Vencimento', 'Status']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: [239, 68, 68] },
+                    footStyles: { fillColor: [229, 231, 235] },
+                    foot: [['TOTAL PENDENTE', '', formatCurrency(data?.summary.totalBillsPending || 0), '', '']],
+                })
+
+            } else if (type === 'collaborators') {
+                // Collaborators Report
+                doc.setFontSize(16)
+                doc.setTextColor(0)
+                doc.text('Relatório de Colaboradores', 14, 45)
+
+                const activeCollabs = data?.collaborators.filter((c: any) => c.status === 'ativo') || []
+
+                const tableData = activeCollabs.map((c: any) => [
+                    c.full_name,
+                    c.department || '-',
+                    c.position || '-',
+                    c.email,
+                ])
+
+                autoTable(doc, {
+                    startY: 55,
+                    head: [['Nome', 'Departamento', 'Cargo', 'Email']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: [34, 197, 94] },
+                })
+
+                const finalY = (doc as any).lastAutoTable.finalY + 15
+                doc.setFontSize(12)
+                doc.text(`Total: ${activeCollabs.length} colaboradores ativos`, 14, finalY)
+            }
+
+            // Footer
+            const pageCount = doc.getNumberOfPages()
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i)
+                doc.setFontSize(8)
+                doc.setTextColor(150)
+                doc.text(`Página ${i} de ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' })
+            }
 
             // Download
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-            const link = document.createElement('a')
-            link.href = URL.createObjectURL(blob)
-            link.download = `relatorio-financeiro-${period}.csv`
-            link.click()
+            const fileName = `relatorio_${type}_${new Date().toISOString().split('T')[0]}.pdf`
+            doc.save(fileName)
+
+        } catch (error) {
+            console.error('Error generating PDF:', error)
+            alert('Erro ao gerar PDF: ' + (error as any).message)
         }
 
-        setExporting(false)
-    }
-
-    const getReportTypeLabel = (type: string) => {
-        const labels: Record<string, string> = {
-            monthly: 'Relatório Mensal',
-            quarterly: 'Relatório Trimestral',
-            annual: 'Relatório Anual',
-            department: 'Por Departamento',
-        }
-        return labels[type] || type
+        setGenerating(false)
     }
 
     if (loading) {
@@ -157,236 +241,235 @@ export default function RelatoriosPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link href="/financeiro">
-                    <Button variant="ghost" size="icon" className="rounded-full">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                </Link>
-                <div className="flex-1">
-                    <h1 className="text-2xl font-bold text-gray-900">Relatórios Financeiros</h1>
-                    <p className="text-gray-500 text-sm">Gere e exporte relatórios de custos</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Relatórios</h1>
+                    <p className="text-gray-500 mt-1">Gere e exporte relatórios em PDF</p>
                 </div>
             </div>
 
-            {/* Report Options */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Configurar Relatório</CardTitle>
-                    <CardDescription>Selecione o tipo e período do relatório</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Tipo de Relatório</label>
-                            <Select value={reportType} onValueChange={setReportType}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="monthly">Relatório Mensal</SelectItem>
-                                    <SelectItem value="quarterly">Relatório Trimestral</SelectItem>
-                                    <SelectItem value="annual">Relatório Anual</SelectItem>
-                                    <SelectItem value="department">Por Departamento</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Período</label>
-                            <input
-                                type="month"
-                                value={period}
-                                onChange={(e) => setPeriod(e.target.value)}
-                                className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Exportar</label>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => handleExport('csv')}
-                                    disabled={exporting}
-                                >
-                                    {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Table className="w-4 h-4 mr-2" />}
-                                    CSV
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => handleExport('pdf')}
-                                    disabled={exporting}
-                                >
-                                    <FileText className="w-4 h-4 mr-2" />
-                                    PDF
-                                </Button>
+            {/* Navigation Tabs */}
+            <div className="flex flex-wrap gap-2 p-1 bg-gray-100 rounded-xl">
+                <Link href="/financeiro" className="flex-1 min-w-[120px]">
+                    <Button variant="ghost" className="w-full hover:bg-white/50">
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Visão Geral
+                    </Button>
+                </Link>
+                <Link href="/financeiro/kanban" className="flex-1 min-w-[120px]">
+                    <Button variant="ghost" className="w-full hover:bg-white/50">
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Kanban
+                    </Button>
+                </Link>
+                <Link href="/financeiro/pagamentos" className="flex-1 min-w-[120px]">
+                    <Button variant="ghost" className="w-full hover:bg-white/50">
+                        <Receipt className="w-4 h-4 mr-2" />
+                        Pagamentos
+                    </Button>
+                </Link>
+                <Link href="/financeiro/relatorios" className="flex-1 min-w-[120px]">
+                    <Button
+                        variant="ghost"
+                        className="w-full bg-white shadow-sm text-gray-900 font-semibold"
+                    >
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        Relatórios
+                    </Button>
+                </Link>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card>
+                    <CardContent className="p-6">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-primary-100 rounded-xl">
+                                <Users className="w-6 h-6 text-primary-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Colaboradores</p>
+                                <p className="text-2xl font-bold">{data?.summary.totalCollaborators}</p>
                             </div>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Report Preview */}
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle className="flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-gray-500" />
-                            {getReportTypeLabel(reportType)}
-                        </CardTitle>
-                        <CardDescription>
-                            Período: {new Date(period + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                        </CardDescription>
-                    </div>
-                    <Badge variant="success" className="flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" />
-                        Atualizado
-                    </Badge>
-                </CardHeader>
-                <CardContent>
-                    {/* Summary Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <div className="p-4 bg-primary-50 rounded-xl text-center">
-                            <DollarSign className="w-8 h-8 text-primary-500 mx-auto mb-2" />
-                            <p className="text-2xl font-bold text-primary-700">{formatCurrency(data.totalPJ + data.totalCLT)}</p>
-                            <p className="text-xs text-primary-600">Custo Total</p>
-                        </div>
-                        <div className="p-4 bg-green-50 rounded-xl text-center">
-                            <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                            <p className="text-2xl font-bold text-green-700">{formatCurrency(data.totalPJ)}</p>
-                            <p className="text-xs text-green-600">Total PJ</p>
-                        </div>
-                        <div className="p-4 bg-blue-50 rounded-xl text-center">
-                            <Users className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                            <p className="text-2xl font-bold text-blue-700">{formatCurrency(data.totalCLT)}</p>
-                            <p className="text-xs text-blue-600">Total CLT</p>
-                        </div>
-                        <div className="p-4 bg-amber-50 rounded-xl text-center">
-                            <Users className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                            <p className="text-2xl font-bold text-amber-700">{data.totalCollaborators}</p>
-                            <p className="text-xs text-amber-600">Colaboradores</p>
-                        </div>
-                    </div>
-
-                    {/* Department Table */}
-                    <div className="border rounded-xl overflow-hidden">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Departamento
-                                    </th>
-                                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Colaboradores
-                                    </th>
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Custo Total
-                                    </th>
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Custo Médio
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {data.departments.map((dept) => (
-                                    <tr key={dept.name} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                                            {dept.name}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600 text-center">
-                                            {dept.count}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">
-                                            {formatCurrency(dept.cost)}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600 text-right">
-                                            {formatCurrency(dept.cost / dept.count)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot className="bg-gray-100">
-                                <tr>
-                                    <td className="px-4 py-3 text-sm font-bold text-gray-900">
-                                        Total
-                                    </td>
-                                    <td className="px-4 py-3 text-sm font-bold text-gray-900 text-center">
-                                        {data.totalCollaborators}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">
-                                        {formatCurrency(data.totalPJ + data.totalCLT)}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">
-                                        {formatCurrency((data.totalPJ + data.totalCLT) / Math.max(data.totalCollaborators, 1))}
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-
-                    {/* Trend Chart */}
-                    <div className="mt-8">
-                        <h3 className="text-sm font-medium text-gray-700 mb-4">Evolução Mensal</h3>
-                        <div className="h-48 flex items-end justify-between gap-2">
-                            {data.monthlyTrend.map((item) => {
-                                const maxValue = Math.max(...data.monthlyTrend.map(d => d.value))
-                                const height = (item.value / maxValue) * 100
-                                return (
-                                    <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
-                                        <div className="text-xs font-medium text-gray-700">{formatCurrency(item.value)}</div>
-                                        <div
-                                            className="w-full bg-gradient-to-t from-primary-500 to-primary-400 rounded-t-lg"
-                                            style={{ height: `${height}%`, minHeight: '20px' }}
-                                        />
-                                        <span className="text-xs text-gray-500 font-medium">{item.month}</span>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Export History */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Download className="w-5 h-5 text-gray-500" />
-                        Relatórios Recentes
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center gap-3">
-                                <FileText className="w-5 h-5 text-gray-400" />
-                                <div>
-                                    <p className="font-medium text-gray-900">relatorio-mensal-nov-2024.csv</p>
-                                    <p className="text-xs text-gray-500">Exportado em {new Date().toLocaleDateString('pt-BR')}</p>
-                                </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-6">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-green-100 rounded-xl">
+                                <TrendingUp className="w-6 h-6 text-green-600" />
                             </div>
-                            <Button variant="ghost" size="sm">
-                                <Download className="w-4 h-4" />
+                            <div>
+                                <p className="text-sm text-gray-500">Folha Mensal</p>
+                                <p className="text-2xl font-bold">{formatCurrency(data?.summary.totalPayroll || 0)}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-6">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-red-100 rounded-xl">
+                                <TrendingDown className="w-6 h-6 text-red-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Contas Pendentes</p>
+                                <p className="text-2xl font-bold">{formatCurrency(data?.summary.totalBillsPending || 0)}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-6">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-blue-100 rounded-xl">
+                                <DollarSign className="w-6 h-6 text-blue-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Contas Pagas</p>
+                                <p className="text-2xl font-bold">{formatCurrency(data?.summary.totalBillsPaid || 0)}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Report Types */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Payroll Report */}
+                <Card className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-primary-100 rounded-xl">
+                                <Receipt className="w-6 h-6 text-primary-600" />
+                            </div>
+                            <div>
+                                <CardTitle>Folha de Pagamento</CardTitle>
+                                <CardDescription>Relatório mensal de salários</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">CLT:</span>
+                                <span className="font-medium">{data?.summary.totalCLT} contratos</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">PJ:</span>
+                                <span className="font-medium">{data?.summary.totalPJ} contratos</span>
+                            </div>
+                            <div className="flex justify-between text-sm border-t pt-2">
+                                <span className="text-gray-900 font-medium">Total:</span>
+                                <span className="font-bold text-primary-600">{formatCurrency(data?.summary.totalPayroll || 0)}</span>
+                            </div>
+                            <Button
+                                className="w-full"
+                                onClick={() => generatePDF('payroll')}
+                                disabled={generating}
+                            >
+                                {generating ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Download className="w-4 h-4 mr-2" />
+                                )}
+                                Exportar PDF
                             </Button>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center gap-3">
-                                <FileText className="w-5 h-5 text-gray-400" />
-                                <div>
-                                    <p className="font-medium text-gray-900">relatorio-departamentos-out-2024.pdf</p>
-                                    <p className="text-xs text-gray-500">Exportado em 01/11/2024</p>
-                                </div>
+                    </CardContent>
+                </Card>
+
+                {/* Bills Report */}
+                <Card className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-red-100 rounded-xl">
+                                <FileText className="w-6 h-6 text-red-600" />
                             </div>
-                            <Button variant="ghost" size="sm">
-                                <Download className="w-4 h-4" />
+                            <div>
+                                <CardTitle>Contas a Pagar</CardTitle>
+                                <CardDescription>Contas pendentes e vencidas</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Pendentes:</span>
+                                <span className="font-medium">{data?.bills.filter((b: any) => b.status === 'pending').length || 0} contas</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Vencidas:</span>
+                                <span className="font-medium text-red-600">{data?.bills.filter((b: any) => b.status === 'overdue').length || 0} contas</span>
+                            </div>
+                            <div className="flex justify-between text-sm border-t pt-2">
+                                <span className="text-gray-900 font-medium">Total Pendente:</span>
+                                <span className="font-bold text-red-600">{formatCurrency(data?.summary.totalBillsPending || 0)}</span>
+                            </div>
+                            <Button
+                                className="w-full"
+                                variant="outline"
+                                onClick={() => generatePDF('bills')}
+                                disabled={generating}
+                            >
+                                {generating ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Download className="w-4 h-4 mr-2" />
+                                )}
+                                Exportar PDF
                             </Button>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+
+                {/* Collaborators Report */}
+                <Card className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-green-100 rounded-xl">
+                                <Users className="w-6 h-6 text-green-600" />
+                            </div>
+                            <div>
+                                <CardTitle>Colaboradores</CardTitle>
+                                <CardDescription>Lista de colaboradores ativos</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Ativos:</span>
+                                <span className="font-medium">{data?.summary.totalCollaborators} colaboradores</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">CLT + PJ:</span>
+                                <span className="font-medium">{(data?.summary.totalCLT || 0) + (data?.summary.totalPJ || 0)} contratos</span>
+                            </div>
+                            <div className="flex justify-between text-sm border-t pt-2">
+                                <span className="text-gray-900 font-medium">Departamentos:</span>
+                                <span className="font-bold">{new Set(data?.collaborators.map((c: any) => c.department)).size}</span>
+                            </div>
+                            <Button
+                                className="w-full"
+                                variant="outline"
+                                onClick={() => generatePDF('collaborators')}
+                                disabled={generating}
+                            >
+                                {generating ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Download className="w-4 h-4 mr-2" />
+                                )}
+                                Exportar PDF
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     )
 }
