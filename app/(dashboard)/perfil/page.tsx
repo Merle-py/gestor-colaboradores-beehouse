@@ -82,12 +82,6 @@ export default function PerfilPage() {
         router.push('/login')
     }
 
-    const recentActivities = [
-        { action: 'Aprovou recesso de Maria Silva', time: '2 horas atrás', icon: Check },
-        { action: 'Cadastrou novo colaborador João Santos', time: '5 horas atrás', icon: User },
-        { action: 'Atualizou contrato de Pedro Lima', time: '1 dia atrás', icon: FileText },
-    ]
-
     return (
         <div className="max-w-5xl mx-auto py-6 space-y-8">
             {/* Header */}
@@ -195,21 +189,10 @@ export default function PerfilPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-3">
-                                {recentActivities.map((activity, i) => {
-                                    const Icon = activity.icon
-                                    return (
-                                        <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                                            <div className="p-2 rounded-full bg-primary-50">
-                                                <Icon className="w-4 h-4 text-primary-600" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-gray-900">{activity.action}</p>
-                                                <p className="text-xs text-gray-500">{activity.time}</p>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
+                            <div className="text-center py-6 text-gray-500">
+                                <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                                <p className="text-sm">Nenhuma atividade recente</p>
+                                <p className="text-xs text-gray-400 mt-1">Suas ações serão registradas aqui</p>
                             </div>
                         </CardContent>
                     </Card>

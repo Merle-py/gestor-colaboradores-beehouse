@@ -77,31 +77,7 @@ export default function AusenciasPage() {
                 created_at: r.created_at,
             })))
         } else {
-            // Mock data for demonstration
-            setAbsences([
-                {
-                    id: '1',
-                    collaborator_id: 'c1',
-                    collaborator_name: 'Maria Silva',
-                    type: 'ferias',
-                    start_date: '2024-01-15',
-                    end_date: '2024-01-30',
-                    status: 'approved',
-                    reason: 'Férias anuais',
-                    created_at: '2024-01-01',
-                },
-                {
-                    id: '2',
-                    collaborator_id: 'c2',
-                    collaborator_name: 'João Santos',
-                    type: 'licenca_medica',
-                    start_date: '2024-02-01',
-                    end_date: '2024-02-05',
-                    status: 'pending',
-                    reason: 'Consulta médica',
-                    created_at: '2024-01-28',
-                },
-            ])
+            setAbsences([])
         }
 
         setLoading(false)

@@ -133,6 +133,12 @@ export default function DocumentosPage() {
                             Gerenciar Checklist
                         </Button>
                     </Link>
+                    <Link href="/documentos/upload">
+                        <Button variant="outline">
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload Documento
+                        </Button>
+                    </Link>
                     <Link href="/colaboradores/novo">
                         <Button className="shadow-lg shadow-primary-500/30 text-black font-bold">
                             <Plus className="w-4 h-4 mr-2" />
