@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { validateAuth, unauthorizedResponse } from '@/lib/auth/validate'
 
-// GET all collaborators
+// GET all collaborators or single by ID
 export async function GET(request: NextRequest) {
     // Validate authentication
     const auth = await validateAuth(request)
@@ -12,11 +12,19 @@ export async function GET(request: NextRequest) {
 
     try {
         const supabase = await createServiceClient()
+        const { searchParams } = new URL(request.url)
+        const id = searchParams.get('id')
 
-        const { data, error } = await (supabase as any)
+        let query = (supabase as any)
             .from('collaborators')
             .select('*')
             .order('created_at', { ascending: false })
+
+        if (id) {
+            query = query.eq('id', id)
+        }
+
+        const { data, error } = await query
 
         if (error) throw error
 

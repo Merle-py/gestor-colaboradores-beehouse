@@ -11,11 +11,19 @@ export async function GET(request: NextRequest) {
 
     try {
         const supabase = await createServiceClient()
+        const { searchParams } = new URL(request.url)
+        const collaboratorId = searchParams.get('collaborator_id')
 
-        const { data, error } = await (supabase as any)
+        let query = (supabase as any)
             .from('epi_deliveries')
-            .select('*, collaborators(full_name), inventory_items(name)')
+            .select('*, collaborators(full_name), inventory_items(name, category)')
             .order('delivery_date', { ascending: false })
+
+        if (collaboratorId) {
+            query = query.eq('collaborator_id', collaboratorId).limit(5)
+        }
+
+        const { data, error } = await query
 
         if (error) throw error
 

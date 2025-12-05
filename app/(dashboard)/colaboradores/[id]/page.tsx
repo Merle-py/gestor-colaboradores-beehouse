@@ -31,7 +31,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
-import { createClient } from '@/lib/supabase/client'
 
 interface Collaborator {
     id: string
@@ -72,7 +71,6 @@ interface EPIDelivery {
 export default function ColaboradorDetailPage() {
     const params = useParams()
     const router = useRouter()
-    const supabase = createClient()
     const [loading, setLoading] = useState(true)
     const [deleting, setDeleting] = useState(false)
     const [collaborator, setCollaborator] = useState<Collaborator | null>(null)
@@ -107,15 +105,33 @@ export default function ColaboradorDetailPage() {
         if (!params.id) return
         setLoading(true)
 
-        const [collabRes, contractsRes, deliveriesRes] = await Promise.all([
-            (supabase.from('collaborators') as any).select('*').eq('id', params.id).single(),
-            (supabase.from('contracts') as any).select('*').eq('collaborator_id', params.id).order('start_date', { ascending: false }),
-            (supabase.from('epi_deliveries') as any).select('*, item:inventory_items(name, category)').eq('collaborator_id', params.id).order('delivery_date', { ascending: false }).limit(5),
-        ])
+        try {
+            const token = localStorage.getItem('auth_token')
+            const headers = { 'Authorization': `Bearer ${token}` }
 
-        if (collabRes.data) setCollaborator(collabRes.data as Collaborator)
-        if (contractsRes.data) setContracts(contractsRes.data as Contract[])
-        if (deliveriesRes.data) setDeliveries(deliveriesRes.data as unknown as EPIDelivery[])
+            // Fetch collaborator
+            const collabRes = await fetch(`/api/collaborators?id=${params.id}`, { headers })
+            const collabData = await collabRes.json()
+            if (collabData.success && collabData.data?.[0]) {
+                setCollaborator(collabData.data[0] as Collaborator)
+            }
+
+            // Fetch contracts
+            const contractsRes = await fetch(`/api/contracts?collaborator_id=${params.id}`, { headers })
+            const contractsData = await contractsRes.json()
+            if (contractsData.success) {
+                setContracts(contractsData.data || [])
+            }
+
+            // Fetch deliveries
+            const deliveriesRes = await fetch(`/api/deliveries?collaborator_id=${params.id}`, { headers })
+            const deliveriesData = await deliveriesRes.json()
+            if (deliveriesData.success) {
+                setDeliveries(deliveriesData.data || [])
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error)
+        }
 
         setLoading(false)
     }
