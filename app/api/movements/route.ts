@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { validateAuth, unauthorizedResponse } from '@/lib/auth/validate'
 
 // GET all inventory movements
 export async function GET(request: NextRequest) {
+    const auth = await validateAuth(request)
+    if (!auth.isValid) {
+        return unauthorizedResponse(auth.error)
+    }
+
     try {
         const supabase = await createServiceClient()
 
@@ -25,10 +31,16 @@ export async function GET(request: NextRequest) {
 
 // POST create new inventory movement
 export async function POST(request: NextRequest) {
+    const auth = await validateAuth(request)
+    if (!auth.isValid) {
+        return unauthorizedResponse(auth.error)
+    }
+
     try {
         const body = await request.json()
         const supabase = await createServiceClient()
 
+        // Insert movement
         const { data, error } = await (supabase as any)
             .from('inventory_movements')
             .insert({
@@ -45,16 +57,19 @@ export async function POST(request: NextRequest) {
 
         // Update inventory quantity
         if (body.item_id && body.quantity) {
-            const delta = body.movement_type === 'entrada' ? body.quantity : -body.quantity
-            await (supabase as any)
+            const { data: item } = await (supabase as any)
                 .from('inventory_items')
-                .update({
-                    current_quantity: (supabase as any).rpc('increment', { inc: delta })
-                })
+                .select('current_quantity')
                 .eq('id', body.item_id)
-                .catch(() => {
-                    console.log('Inventory update skipped')
-                })
+                .single()
+
+            if (item) {
+                const delta = body.movement_type === 'entrada' ? body.quantity : -body.quantity
+                await (supabase as any)
+                    .from('inventory_items')
+                    .update({ current_quantity: Math.max(0, item.current_quantity + delta) })
+                    .eq('id', body.item_id)
+            }
         }
 
         return NextResponse.json({ success: true, data })

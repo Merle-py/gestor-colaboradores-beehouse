@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { validateAuth, unauthorizedResponse } from '@/lib/auth/validate'
 
 // GET all collaborators
 export async function GET(request: NextRequest) {
+    // Validate authentication
+    const auth = await validateAuth(request)
+    if (!auth.isValid) {
+        return unauthorizedResponse(auth.error)
+    }
+
     try {
         const supabase = await createServiceClient()
 
@@ -25,11 +32,17 @@ export async function GET(request: NextRequest) {
 
 // POST create new collaborator
 export async function POST(request: NextRequest) {
+    // Validate authentication
+    const auth = await validateAuth(request)
+    if (!auth.isValid) {
+        return unauthorizedResponse(auth.error)
+    }
+
     try {
         const body = await request.json()
         const supabase = await createServiceClient()
 
-        // Insert collaborator
+        // Insert collaborator with bank data
         const { data: collab, error: collabError } = await (supabase as any)
             .from('collaborators')
             .insert({
@@ -47,6 +60,12 @@ export async function POST(request: NextRequest) {
                 address_city: body.address_city || null,
                 address_state: body.address_state || null,
                 address_zip: body.address_zip || null,
+                // Bank data
+                bank_name: body.bank_name || null,
+                bank_agency: body.bank_agency || null,
+                bank_account: body.bank_account || null,
+                bank_account_type: body.bank_account_type || null,
+                pix_key: body.pix_key || null,
                 status: body.status || 'ativo',
             })
             .select()
@@ -71,7 +90,6 @@ export async function POST(request: NextRequest) {
 
             if (contractError) {
                 console.error('Contract error:', contractError)
-                // Don't fail the whole operation, just log the error
             }
         }
 

@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { validateAuth, unauthorizedResponse } from '@/lib/auth/validate'
 
 // GET all EPI deliveries
 export async function GET(request: NextRequest) {
+    const auth = await validateAuth(request)
+    if (!auth.isValid) {
+        return unauthorizedResponse(auth.error)
+    }
+
     try {
         const supabase = await createServiceClient()
 
@@ -25,6 +31,11 @@ export async function GET(request: NextRequest) {
 
 // POST create new EPI delivery
 export async function POST(request: NextRequest) {
+    const auth = await validateAuth(request)
+    if (!auth.isValid) {
+        return unauthorizedResponse(auth.error)
+    }
+
     try {
         const body = await request.json()
         const supabase = await createServiceClient()
@@ -43,17 +54,6 @@ export async function POST(request: NextRequest) {
             .single()
 
         if (error) throw error
-
-        // Update inventory quantity
-        if (body.item_id && body.quantity) {
-            await (supabase as any).rpc('decrement_inventory', {
-                item_id: body.item_id,
-                qty: body.quantity
-            }).catch(() => {
-                // RPC might not exist, try direct update
-                console.log('RPC not available, skipping inventory update')
-            })
-        }
 
         return NextResponse.json({ success: true, data })
     } catch (error: any) {

@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { validateAuth, unauthorizedResponse } from '@/lib/auth/validate'
 
 // GET all inventory items
 export async function GET(request: NextRequest) {
+    const auth = await validateAuth(request)
+    if (!auth.isValid) {
+        return unauthorizedResponse(auth.error)
+    }
+
     try {
         const supabase = await createServiceClient()
 
@@ -25,6 +31,11 @@ export async function GET(request: NextRequest) {
 
 // POST create new inventory item
 export async function POST(request: NextRequest) {
+    const auth = await validateAuth(request)
+    if (!auth.isValid) {
+        return unauthorizedResponse(auth.error)
+    }
+
     try {
         const body = await request.json()
         const supabase = await createServiceClient()
