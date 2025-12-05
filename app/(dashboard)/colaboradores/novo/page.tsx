@@ -133,57 +133,27 @@ export default function NovoColaboradorPage() {
         setFeedback(null)
 
         try {
-            // Insert collaborator
-            const { data: collab, error: collabError } = await (supabase.from('collaborators') as any)
-                .insert({
-                    full_name: formData.full_name,
-                    email: formData.email,
-                    cpf: formData.cpf || null,
-                    rg: formData.rg || null,
-                    phone: formData.phone || null,
-                    birth_date: formData.birth_date || null,
-                    department: formData.department,
-                    position: formData.position,
+            // Use API route instead of direct Supabase (bypasses RLS)
+            const response = await fetch('/api/collaborators', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...formData,
                     contract_type: contractData.contract_type,
                     hire_date: contractData.start_date,
-                    address_street: formData.address_street || null,
-                    address_city: formData.address_city || null,
-                    address_state: formData.address_state || null,
-                    address_zip: formData.address_zip || null,
-                    status: 'ativo',
-                })
-                .select()
-                .single()
-
-            if (collabError) throw collabError
-
-            // Insert contract if enabled
-            if (contractData.create_contract && collab) {
-                const { error: contractError } = await (supabase.from('contracts') as any).insert({
-                    collaborator_id: collab.id,
-                    contract_type: contractData.contract_type,
+                    create_contract: contractData.create_contract,
                     start_date: contractData.start_date,
-                    end_date: contractData.end_date || null,
-                    monthly_value: contractData.monthly_value ? parseFloat(contractData.monthly_value) : null,
-                    payment_day: parseInt(contractData.payment_day),
-                    work_hours_per_week: parseInt(contractData.work_hours_per_week),
-                    status: 'active',
-                })
+                    end_date: contractData.end_date,
+                    monthly_value: contractData.monthly_value,
+                    payment_day: contractData.payment_day,
+                    work_hours_per_week: contractData.work_hours_per_week,
+                }),
+            })
 
-                if (contractError) throw contractError
-            }
+            const result = await response.json()
 
-            // Create pending action for documents
-            if (collab) {
-                await (supabase.from('pending_actions') as any).insert({
-                    action_type: 'document_upload',
-                    title: `Documentos pendentes: ${formData.full_name}`,
-                    description: 'Colaborador admitido. Aguardando upload de documentos.',
-                    status: 'pending',
-                    priority: 7,
-                    module: 'Documentos',
-                    collaborator_id: collab.id,
-                })
+            if (!result.success) {
+                throw new Error(result.error)
             }
 
             setFeedback({ message: 'Colaborador cadastrado com sucesso!', type: 'success' })
@@ -191,6 +161,7 @@ export default function NovoColaboradorPage() {
         } catch (e: any) {
             console.error(e)
             setFeedback({ message: 'Erro: ' + (e.message || e), type: 'error' })
+            isSubmitting.current = false // Reset on error to allow retry
         } finally {
             setLoading(false)
         }
