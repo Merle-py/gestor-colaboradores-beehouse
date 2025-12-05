@@ -85,6 +85,10 @@ export default function NovoColaboradorPage() {
         bank_account: '',
         bank_account_type: 'corrente',
         pix_key: '',
+        // Real estate specific
+        creci: '',
+        default_commission: '',
+        partner_type: '',
     })
 
     // Contract Data
@@ -467,6 +471,52 @@ export default function NovoColaboradorPage() {
                                         onChange={(e) => handleChange('pix_key', e.target.value)}
                                         placeholder="CPF, email, telefone ou chave aleatória"
                                     />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Real Estate Specific - CRECI */}
+                        <div className="pt-4 border-t">
+                            <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <Building2 className="w-5 h-5 text-gray-500" />
+                                Dados Imobiliária (Opcional)
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">CRECI</label>
+                                    <Input
+                                        value={formData.creci}
+                                        onChange={(e) => handleChange('creci', e.target.value.toUpperCase())}
+                                        placeholder="Ex: 12345-F"
+                                        maxLength={15}
+                                    />
+                                    <p className="text-xs text-gray-500">Registro do corretor</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Comissão Padrão (%)</label>
+                                    <Input
+                                        type="number"
+                                        step="0.5"
+                                        min="0"
+                                        max="100"
+                                        value={formData.default_commission}
+                                        onChange={(e) => handleChange('default_commission', e.target.value)}
+                                        placeholder="Ex: 6"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Tipo de Vínculo</label>
+                                    <Select value={formData.partner_type} onValueChange={(v) => handleChange('partner_type', v)}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecione..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="funcionario">Funcionário</SelectItem>
+                                            <SelectItem value="corretor_associado">Corretor Associado</SelectItem>
+                                            <SelectItem value="parceiro">Parceiro</SelectItem>
+                                            <SelectItem value="estagiario">Estagiário</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                         </div>

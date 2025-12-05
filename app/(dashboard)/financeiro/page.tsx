@@ -150,20 +150,37 @@ export default function FinanceiroPage() {
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Financeiro</h1>
                     <p className="text-gray-500 mt-1">Gestão financeira e controle de custos</p>
                 </div>
-                <div className="flex gap-3">
-                    <Link href="/financeiro/pagamentos">
-                        <Button variant="outline">
-                            <Receipt className="w-4 h-4 mr-2" />
-                            Pagamentos
-                        </Button>
-                    </Link>
-                    <Link href="/financeiro/relatorios">
-                        <Button>
-                            <BarChart3 className="w-4 h-4 mr-2" />
-                            Relatórios
-                        </Button>
-                    </Link>
-                </div>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex flex-wrap gap-2 p-1 bg-gray-100 rounded-xl">
+                <Link href="/financeiro" className="flex-1 min-w-[120px]">
+                    <Button
+                        variant="ghost"
+                        className="w-full bg-white shadow-sm text-gray-900 font-semibold"
+                    >
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Visão Geral
+                    </Button>
+                </Link>
+                <Link href="/financeiro/kanban" className="flex-1 min-w-[120px]">
+                    <Button variant="ghost" className="w-full hover:bg-white/50">
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Kanban
+                    </Button>
+                </Link>
+                <Link href="/financeiro/pagamentos" className="flex-1 min-w-[120px]">
+                    <Button variant="ghost" className="w-full hover:bg-white/50">
+                        <Receipt className="w-4 h-4 mr-2" />
+                        Pagamentos
+                    </Button>
+                </Link>
+                <Link href="/financeiro/relatorios" className="flex-1 min-w-[120px]">
+                    <Button variant="ghost" className="w-full hover:bg-white/50">
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        Relatórios
+                    </Button>
+                </Link>
             </div>
 
             {/* KPI Cards */}
