@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, RefreshCw, Search, MoreHorizontal, Calendar, Clock, Users } from 'lucide-react'
+import { Plus, RefreshCw, Search, MoreHorizontal, Calendar, Clock, Users, CheckCircle, XCircle, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -78,6 +78,26 @@ export default function RecessosPage() {
 
     const pendingCount = recesses.filter(r => r.status === 'requested').length
     const inProgressCount = recesses.filter(r => r.status === 'in_progress').length
+
+    const handleApprove = async (id: string) => {
+        if (!confirm('Aprovar esta solicitação de recesso?')) return
+
+        await (supabase.from('recess_requests') as any)
+            .update({ status: 'approved' })
+            .eq('id', id)
+
+        fetchRecesses()
+    }
+
+    const handleReject = async (id: string) => {
+        if (!confirm('Rejeitar esta solicitação de recesso?')) return
+
+        await (supabase.from('recess_requests') as any)
+            .update({ status: 'rejected' })
+            .eq('id', id)
+
+        fetchRecesses()
+    }
 
     return (
         <div className="space-y-8">
@@ -201,11 +221,22 @@ export default function RecessosPage() {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
+                                                    <Link href={`/colaboradores/${recess.collaborator_id}`}>
+                                                        <DropdownMenuItem className="cursor-pointer">
+                                                            <Eye className="w-4 h-4 mr-2" />
+                                                            Ver colaborador
+                                                        </DropdownMenuItem>
+                                                    </Link>
                                                     {recess.status === 'requested' && (
                                                         <>
-                                                            <DropdownMenuItem className="text-green-600">Aprovar</DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-red-600">Rejeitar</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleApprove(recess.id)} className="text-green-600 cursor-pointer">
+                                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                                                Aprovar
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleReject(recess.id)} className="text-red-600 cursor-pointer">
+                                                                <XCircle className="w-4 h-4 mr-2" />
+                                                                Rejeitar
+                                                            </DropdownMenuItem>
                                                         </>
                                                     )}
                                                 </DropdownMenuContent>

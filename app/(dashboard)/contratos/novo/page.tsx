@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Loader2 } from 'lucide-react'
@@ -39,13 +39,13 @@ export default function NovoContratoPage() {
     const [collaborators, setCollaborators] = useState<{ id: string; full_name: string }[]>([])
 
     // Fetch collaborators on mount
-    useState(() => {
+    useEffect(() => {
         const fetchCollaborators = async () => {
             const { data } = await supabase.from('collaborators').select('id, full_name').order('full_name')
             if (data) setCollaborators(data)
         }
         fetchCollaborators()
-    })
+    }, [])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()

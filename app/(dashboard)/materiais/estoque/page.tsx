@@ -113,8 +113,7 @@ export default function EstoquePage() {
         try {
             if (editingItem) {
                 // Update
-                await supabase
-                    .from('inventory_items')
+                await (supabase.from('inventory_items') as any)
                     .update({
                         name: formData.name,
                         description: formData.description || null,
@@ -130,8 +129,7 @@ export default function EstoquePage() {
                     .eq('id', editingItem.id)
             } else {
                 // Insert
-                await supabase
-                    .from('inventory_items')
+                await (supabase.from('inventory_items') as any)
                     .insert({
                         name: formData.name,
                         description: formData.description || null,
@@ -158,8 +156,7 @@ export default function EstoquePage() {
     const handleDelete = async (id: string) => {
         if (!confirm('Tem certeza que deseja desativar este item?')) return
 
-        await supabase
-            .from('inventory_items')
+        await (supabase.from('inventory_items') as any)
             .update({ is_active: false })
             .eq('id', id)
 

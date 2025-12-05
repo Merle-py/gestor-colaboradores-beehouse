@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, RefreshCw, Search, MoreHorizontal, AlertTriangle, FileText } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Plus, RefreshCw, Search, MoreHorizontal, AlertTriangle, FileText, Eye, RotateCcw, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -31,6 +32,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Contract, ContractStatus, ContractType } from '@/types/database.types'
 
 export default function ContratosPage() {
+    const router = useRouter()
     const supabase = createClient()
     const [contracts, setContracts] = useState<(Contract & { collaborator?: { full_name: string } })[]>([])
     const [loading, setLoading] = useState(true)
@@ -82,6 +84,37 @@ export default function ContratosPage() {
         if (!endDate) return null
         const days = Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
         return days
+    }
+
+    const handleRenewContract = async (contractId: string) => {
+        if (!confirm('Deseja renovar este contrato por mais 12 meses?')) return
+
+        const contract = contracts.find(c => c.id === contractId)
+        if (!contract) return
+
+        const currentEnd = contract.end_date ? new Date(contract.end_date) : new Date()
+        const newEnd = new Date(currentEnd)
+        newEnd.setFullYear(newEnd.getFullYear() + 1)
+
+        await (supabase.from('contracts') as any)
+            .update({
+                end_date: newEnd.toISOString().split('T')[0],
+                renewal_date: new Date().toISOString().split('T')[0],
+                status: 'active'
+            })
+            .eq('id', contractId)
+
+        fetchContracts()
+    }
+
+    const handleCancelContract = async (contractId: string) => {
+        if (!confirm('Tem certeza que deseja encerrar este contrato?')) return
+
+        await (supabase.from('contracts') as any)
+            .update({ status: 'cancelled' })
+            .eq('id', contractId)
+
+        fetchContracts()
     }
 
     return (
@@ -228,9 +261,20 @@ export default function ContratosPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
-                                                        <DropdownMenuItem>Renovar contrato</DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-red-600">Encerrar contrato</DropdownMenuItem>
+                                                        <Link href={`/colaboradores/${contract.collaborator_id}`}>
+                                                            <DropdownMenuItem className="cursor-pointer">
+                                                                <Eye className="w-4 h-4 mr-2" />
+                                                                Ver colaborador
+                                                            </DropdownMenuItem>
+                                                        </Link>
+                                                        <DropdownMenuItem onClick={() => handleRenewContract(contract.id)} className="cursor-pointer">
+                                                            <RotateCcw className="w-4 h-4 mr-2" />
+                                                            Renovar contrato
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleCancelContract(contract.id)} className="text-red-600 cursor-pointer">
+                                                            <XCircle className="w-4 h-4 mr-2" />
+                                                            Encerrar contrato
+                                                        </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>

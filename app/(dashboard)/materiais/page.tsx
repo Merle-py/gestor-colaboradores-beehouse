@@ -11,7 +11,10 @@ import {
     AlertTriangle,
     ArrowDownCircle,
     ArrowUpCircle,
-    Boxes
+    Boxes,
+    Eye,
+    Edit,
+    ArrowRightLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -277,9 +280,24 @@ export default function MateriaisPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
-                                                        <DropdownMenuItem>Editar item</DropdownMenuItem>
-                                                        <DropdownMenuItem>Registrar movimento</DropdownMenuItem>
+                                                        <Link href={`/materiais/estoque`}>
+                                                            <DropdownMenuItem className="cursor-pointer">
+                                                                <Eye className="w-4 h-4 mr-2" />
+                                                                Ver detalhes
+                                                            </DropdownMenuItem>
+                                                        </Link>
+                                                        <Link href={`/materiais/estoque`}>
+                                                            <DropdownMenuItem className="cursor-pointer">
+                                                                <Edit className="w-4 h-4 mr-2" />
+                                                                Editar item
+                                                            </DropdownMenuItem>
+                                                        </Link>
+                                                        <Link href="/materiais/movimentacoes">
+                                                            <DropdownMenuItem className="cursor-pointer">
+                                                                <ArrowRightLeft className="w-4 h-4 mr-2" />
+                                                                Registrar movimento
+                                                            </DropdownMenuItem>
+                                                        </Link>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
