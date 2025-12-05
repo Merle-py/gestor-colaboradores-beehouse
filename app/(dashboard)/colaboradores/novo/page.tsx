@@ -31,6 +31,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
+import { maskCPF, maskRG, maskPhone, maskCEP, maskBankAgency, maskBankAccount, unmask, validateDateRange } from '@/lib/utils/masks'
 import type { ContractType } from '@/types/database.types'
 
 const schema = z.object({
@@ -98,11 +99,48 @@ export default function NovoColaboradorPage() {
     })
 
     const handleChange = (field: string, value: string) => {
-        setFormData((prev) => ({ ...prev, [field]: value }))
+        // Apply masks based on field
+        let maskedValue = value
+        switch (field) {
+            case 'cpf':
+                maskedValue = maskCPF(value)
+                break
+            case 'rg':
+                maskedValue = maskRG(value)
+                break
+            case 'phone':
+                maskedValue = maskPhone(value)
+                break
+            case 'address_zip':
+                maskedValue = maskCEP(value)
+                break
+            case 'bank_agency':
+                maskedValue = maskBankAgency(value)
+                break
+            case 'bank_account':
+                maskedValue = maskBankAccount(value)
+                break
+        }
+        setFormData((prev) => ({ ...prev, [field]: maskedValue }))
     }
 
     const handleContractChange = (field: string, value: string | boolean) => {
+        // Validate end date is not before start date
+        if (field === 'end_date' && typeof value === 'string' && value) {
+            if (!validateDateRange(contractData.start_date, value)) {
+                setFeedback({ message: 'Data de término não pode ser anterior à data de início', type: 'error' })
+                return
+            }
+        }
+        if (field === 'start_date' && typeof value === 'string' && contractData.end_date) {
+            if (!validateDateRange(value, contractData.end_date)) {
+                // Clear end date if start date is after
+                setContractData((prev) => ({ ...prev, [field]: value, end_date: '' }))
+                return
+            }
+        }
         setContractData((prev) => ({ ...prev, [field]: value }))
+        setFeedback(null)
     }
 
     const nextStep = () => {
@@ -118,6 +156,11 @@ export default function NovoColaboradorPage() {
                 }
             }
         } else if (currentStep === 'contract') {
+            // Validate dates
+            if (contractData.end_date && !validateDateRange(contractData.start_date, contractData.end_date)) {
+                setFeedback({ message: 'Data de término não pode ser anterior à data de início', type: 'error' })
+                return
+            }
             setCurrentStep('documents')
             setFeedback(null)
         }
@@ -486,6 +529,7 @@ export default function NovoColaboradorPage() {
                                         type="date"
                                         value={contractData.end_date}
                                         onChange={(e) => handleContractChange('end_date', e.target.value)}
+                                        min={contractData.start_date}
                                     />
                                     <p className="text-xs text-gray-500">Deixe vazio para contrato indeterminado</p>
                                 </div>
