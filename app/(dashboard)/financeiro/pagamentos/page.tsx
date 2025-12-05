@@ -431,10 +431,10 @@ export default function PagamentosPage() {
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${payment.status === 'paid' ? 'bg-green-100' :
-                                                    payment.status === 'overdue' ? 'bg-red-100' : 'bg-amber-100'
+                                                payment.status === 'overdue' ? 'bg-red-100' : 'bg-amber-100'
                                                 }`}>
                                                 <StatusIcon className={`w-5 h-5 ${payment.status === 'paid' ? 'text-green-600' :
-                                                        payment.status === 'overdue' ? 'text-red-600' : 'text-amber-600'
+                                                    payment.status === 'overdue' ? 'text-red-600' : 'text-amber-600'
                                                     }`} />
                                             </div>
                                             <div>
@@ -466,12 +466,20 @@ export default function PagamentosPage() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     {payment.status !== 'paid' && (
-                                                        <DropdownMenuItem onClick={() => handleMarkAsPaid(payment.id)}>
-                                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleMarkAsPaid(payment.id)}
+                                                            className="cursor-pointer"
+                                                        >
+                                                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
                                                             Marcar como Pago
                                                         </DropdownMenuItem>
                                                     )}
-                                                    <DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => {
+                                                            alert(`Comprovante de ${payment.collaborator_name} - ${formatCurrency(payment.net_value)} - Ref: ${payment.reference_month}`)
+                                                        }}
+                                                        className="cursor-pointer"
+                                                    >
                                                         <Download className="w-4 h-4 mr-2" />
                                                         Baixar Comprovante
                                                     </DropdownMenuItem>

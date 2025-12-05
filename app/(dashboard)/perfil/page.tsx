@@ -244,15 +244,25 @@ export default function PerfilPage() {
                             <CardTitle className="text-base">Configurações</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <Button variant="ghost" className="w-full justify-start">
-                                <Bell className="w-4 h-4 mr-2" />
-                                Notificações
-                            </Button>
-                            <Button variant="ghost" className="w-full justify-start">
+                            <Link href="/alertas">
+                                <Button variant="ghost" className="w-full justify-start">
+                                    <Bell className="w-4 h-4 mr-2" />
+                                    Notificações
+                                </Button>
+                            </Link>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start"
+                                onClick={() => alert('Configure suas opções de segurança em breve!')}
+                            >
                                 <Shield className="w-4 h-4 mr-2" />
                                 Segurança
                             </Button>
-                            <Button variant="ghost" className="w-full justify-start">
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start"
+                                onClick={() => alert('Configurações de preferências em breve!')}
+                            >
                                 <Settings className="w-4 h-4 mr-2" />
                                 Preferências
                             </Button>
