@@ -42,7 +42,14 @@ const navLinks = [
     { label: 'Contratos', icon: Briefcase, href: '/contratos' },
     { label: 'Recessos', icon: Calendar, href: '/recessos' },
     { label: 'Materiais & EPIs', icon: Package, href: '/materiais' },
-    { label: 'Financeiro', icon: Banknote, href: '/financeiro' },
+    {
+        label: 'Financeiro', icon: Banknote, href: '/financeiro', subItems: [
+            { label: 'Visão Geral', href: '/financeiro' },
+            { label: 'Kanban', href: '/financeiro/kanban' },
+            { label: 'Pagamentos', href: '/financeiro/pagamentos' },
+            { label: 'Relatórios', href: '/financeiro/relatorios' },
+        ]
+    },
     { label: 'Relatórios', icon: BarChart3, href: '/relatorios' },
     { label: 'Alertas', icon: Bell, href: '/alertas' },
 ]
