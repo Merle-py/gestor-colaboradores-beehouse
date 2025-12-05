@@ -115,3 +115,48 @@ export async function POST(request: NextRequest) {
         )
     }
 }
+
+// DELETE collaborator
+export async function DELETE(request: NextRequest) {
+    const auth = await validateAuth(request)
+    if (!auth.isValid) {
+        return unauthorizedResponse(auth.error)
+    }
+
+    try {
+        const { searchParams } = new URL(request.url)
+        const id = searchParams.get('id')
+
+        if (!id) {
+            return NextResponse.json(
+                { success: false, error: 'ID é obrigatório' },
+                { status: 400 }
+            )
+        }
+
+        const supabase = await createServiceClient()
+
+        // Delete related records first (to avoid foreign key constraints)
+        await (supabase as any).from('contracts').delete().eq('collaborator_id', id)
+        await (supabase as any).from('epi_deliveries').delete().eq('collaborator_id', id)
+        await (supabase as any).from('recess_requests').delete().eq('collaborator_id', id)
+        await (supabase as any).from('pending_actions').delete().eq('collaborator_id', id)
+        await (supabase as any).from('document_checklists').delete().eq('collaborator_id', id)
+
+        // Delete the collaborator
+        const { error } = await (supabase as any)
+            .from('collaborators')
+            .delete()
+            .eq('id', id)
+
+        if (error) throw error
+
+        return NextResponse.json({ success: true })
+    } catch (error: any) {
+        console.error('Error deleting collaborator:', error)
+        return NextResponse.json(
+            { success: false, error: error.message },
+            { status: 500 }
+        )
+    }
+}

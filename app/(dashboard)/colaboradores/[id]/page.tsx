@@ -74,9 +74,34 @@ export default function ColaboradorDetailPage() {
     const router = useRouter()
     const supabase = createClient()
     const [loading, setLoading] = useState(true)
+    const [deleting, setDeleting] = useState(false)
     const [collaborator, setCollaborator] = useState<Collaborator | null>(null)
     const [contracts, setContracts] = useState<Contract[]>([])
     const [deliveries, setDeliveries] = useState<EPIDelivery[]>([])
+
+    const handleDelete = async () => {
+        if (!confirm('Tem certeza que deseja excluir este colaborador? Esta ação não pode ser desfeita.')) return
+
+        setDeleting(true)
+        try {
+            const token = localStorage.getItem('auth_token')
+            const res = await fetch(`/api/collaborators?id=${params.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            const data = await res.json()
+            if (data.success) {
+                router.push('/colaboradores')
+            } else {
+                alert('Erro ao excluir: ' + data.error)
+            }
+        } catch (error: any) {
+            alert('Erro ao excluir: ' + error.message)
+        } finally {
+            setDeleting(false)
+        }
+    }
 
     const fetchData = async () => {
         if (!params.id) return
@@ -172,7 +197,7 @@ export default function ColaboradorDetailPage() {
                     </Link>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" disabled={deleting}>
                                 <MoreHorizontal className="w-5 h-5" />
                             </Button>
                         </DropdownMenuTrigger>
@@ -180,7 +205,13 @@ export default function ColaboradorDetailPage() {
                             <DropdownMenuItem>Enviar email</DropdownMenuItem>
                             <DropdownMenuItem>Ver documentos</DropdownMenuItem>
                             <DropdownMenuItem>Registrar recesso</DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">Desligar colaborador</DropdownMenuItem>
+                            <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={handleDelete}
+                                disabled={deleting}
+                            >
+                                {deleting ? 'Excluindo...' : 'Excluir colaborador'}
+                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
