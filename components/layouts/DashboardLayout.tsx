@@ -324,17 +324,57 @@ export default function DashboardLayout({
                             />
                         </div>
 
-                        <Link href="/colaboradores/novo">
-                            <Button
-                                size="icon"
-                                className="rounded-full w-8 h-8 shadow-md hover:scale-105 transition-transform bg-[#f9b410] text-black hover:bg-[#e0a20e]"
-                            >
-                                <Plus className="w-4 h-4" />
-                            </Button>
-                        </Link>
+                        {/* Quick Add Menu */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    className="rounded-full w-8 h-8 shadow-md hover:scale-105 transition-transform bg-[#f9b410] text-black hover:bg-[#e0a20e]"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                                <div className="px-2 py-1.5 text-xs font-bold text-gray-500 uppercase">
+                                    Adicionar
+                                </div>
+                                <DropdownMenuSeparator />
+                                <Link href="/colaboradores/novo">
+                                    <DropdownMenuItem className="cursor-pointer">
+                                        <Users className="w-4 h-4 mr-2" />
+                                        Novo Colaborador
+                                    </DropdownMenuItem>
+                                </Link>
+                                <Link href="/contratos/novo">
+                                    <DropdownMenuItem className="cursor-pointer">
+                                        <Briefcase className="w-4 h-4 mr-2" />
+                                        Novo Contrato
+                                    </DropdownMenuItem>
+                                </Link>
+                                <Link href="/recessos/novo">
+                                    <DropdownMenuItem className="cursor-pointer">
+                                        <Calendar className="w-4 h-4 mr-2" />
+                                        Novo Recesso
+                                    </DropdownMenuItem>
+                                </Link>
+                                <Link href="/materiais/entregas">
+                                    <DropdownMenuItem className="cursor-pointer">
+                                        <Package className="w-4 h-4 mr-2" />
+                                        Entrega de EPI
+                                    </DropdownMenuItem>
+                                </Link>
+                                <Link href="/documentos/upload">
+                                    <DropdownMenuItem className="cursor-pointer">
+                                        <FileText className="w-4 h-4 mr-2" />
+                                        Upload Documento
+                                    </DropdownMenuItem>
+                                </Link>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
                         <div className="h-5 w-px bg-gray-200 mx-1 hidden sm:block" />
 
+                        {/* User Menu */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="rounded-full p-0.5 hover:bg-gray-100 h-8 w-8">
@@ -348,10 +388,12 @@ export default function DashboardLayout({
                                     {userName}
                                 </div>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-sm">
-                                    <User className="w-3.5 h-3.5 mr-2" />
-                                    Meu Perfil
-                                </DropdownMenuItem>
+                                <Link href="/perfil">
+                                    <DropdownMenuItem className="text-sm cursor-pointer">
+                                        <User className="w-3.5 h-3.5 mr-2" />
+                                        Meu Perfil
+                                    </DropdownMenuItem>
+                                </Link>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={handleLogout} className="text-red-600 text-sm">
                                     <LogOut className="w-3.5 h-3.5 mr-2" />

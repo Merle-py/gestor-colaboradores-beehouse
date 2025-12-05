@@ -78,6 +78,12 @@ export default function NovoColaboradorPage() {
         address_city: '',
         address_state: '',
         address_zip: '',
+        // Bank data
+        bank_name: '',
+        bank_agency: '',
+        bank_account: '',
+        bank_account_type: 'corrente',
+        pix_key: '',
     })
 
     // Contract Data
@@ -356,6 +362,61 @@ export default function NovoColaboradorPage() {
                                         onChange={(e) => handleChange('address_state', e.target.value)}
                                         placeholder="UF"
                                         maxLength={2}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Bank Data */}
+                        <div className="pt-4 border-t">
+                            <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <CreditCard className="w-5 h-5 text-gray-500" />
+                                Dados Bancários
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Banco</label>
+                                    <Input
+                                        value={formData.bank_name}
+                                        onChange={(e) => handleChange('bank_name', e.target.value)}
+                                        placeholder="Nome do banco"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Agência</label>
+                                    <Input
+                                        value={formData.bank_agency}
+                                        onChange={(e) => handleChange('bank_agency', e.target.value)}
+                                        placeholder="0000"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Conta</label>
+                                    <Input
+                                        value={formData.bank_account}
+                                        onChange={(e) => handleChange('bank_account', e.target.value)}
+                                        placeholder="00000-0"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Tipo de Conta</label>
+                                    <Select value={formData.bank_account_type} onValueChange={(v) => handleChange('bank_account_type', v)}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="corrente">Conta Corrente</SelectItem>
+                                            <SelectItem value="poupanca">Poupança</SelectItem>
+                                            <SelectItem value="salario">Conta Salário</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="md:col-span-2 space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Chave PIX</label>
+                                    <Input
+                                        value={formData.pix_key}
+                                        onChange={(e) => handleChange('pix_key', e.target.value)}
+                                        placeholder="CPF, email, telefone ou chave aleatória"
                                     />
                                 </div>
                             </div>
