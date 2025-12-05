@@ -49,6 +49,7 @@ export default function EditarColaboradorPage() {
     const supabase = createClient()
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [deleting, setDeleting] = useState(false)
     const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
     const [formData, setFormData] = useState({
@@ -111,6 +112,30 @@ export default function EditarColaboradorPage() {
 
     const handleChange = (field: string, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }))
+    }
+
+    const handleDelete = async () => {
+        if (!confirm('Tem certeza que deseja excluir este colaborador? Esta ação não pode ser desfeita.')) return
+
+        setDeleting(true)
+        try {
+            const token = localStorage.getItem('auth_token')
+            const res = await fetch(`/api/collaborators?id=${params.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+
+            const data = await res.json()
+            if (data.success) {
+                router.push('/colaboradores')
+            } else {
+                setFeedback({ message: 'Erro ao excluir: ' + data.error, type: 'error' })
+            }
+        } catch (error: any) {
+            setFeedback({ message: 'Erro ao excluir: ' + error.message, type: 'error' })
+        } finally {
+            setDeleting(false)
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -397,9 +422,15 @@ export default function EditarColaboradorPage() {
 
                 {/* Actions */}
                 <div className="flex items-center justify-between pt-4">
-                    <Button type="button" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Excluir Colaborador
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                    >
+                        {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                        {deleting ? 'Excluindo...' : 'Excluir Colaborador'}
                     </Button>
 
                     <div className="flex gap-3">
