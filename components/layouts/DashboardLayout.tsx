@@ -42,6 +42,7 @@ const navLinks = [
     { label: 'Admissão & Docs', icon: FileText, href: '/documentos' },
     { label: 'Contratos', icon: Briefcase, href: '/contratos' },
     { label: 'Recessos', icon: Calendar, href: '/recessos' },
+    { label: 'Ausências', icon: Calendar, href: '/ausencias' },
     { label: 'Materiais & EPIs', icon: Package, href: '/materiais' },
     {
         label: 'Financeiro', icon: Banknote, href: '/financeiro', subItems: [
