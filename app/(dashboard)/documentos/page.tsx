@@ -12,7 +12,8 @@ import {
     XCircle,
     Clock,
     Upload,
-    Settings
+    Settings,
+    Eye,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -94,6 +95,26 @@ export default function DocumentosPage() {
 
     const pendingCount = documents.filter(d => d.status === 'pending').length
     const uploadedCount = documents.filter(d => d.status === 'uploaded').length
+
+    const handleApprove = async (docId: string) => {
+        if (!confirm('Aprovar este documento?')) return
+
+        await (supabase.from('collaborator_documents') as any)
+            .update({ status: 'approved' })
+            .eq('id', docId)
+
+        fetchDocuments()
+    }
+
+    const handleReject = async (docId: string) => {
+        if (!confirm('Rejeitar este documento?')) return
+
+        await (supabase.from('collaborator_documents') as any)
+            .update({ status: 'rejected' })
+            .eq('id', docId)
+
+        fetchDocuments()
+    }
 
     return (
         <div className="space-y-8">
@@ -226,14 +247,30 @@ export default function DocumentosPage() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     {doc.cloud_url && (
-                                                        <DropdownMenuItem onClick={() => window.open(doc.cloud_url!, '_blank')}>
+                                                        <DropdownMenuItem
+                                                            onClick={() => window.open(doc.cloud_url!, '_blank')}
+                                                            className="cursor-pointer"
+                                                        >
+                                                            <Eye className="w-4 h-4 mr-2" />
                                                             Ver documento
                                                         </DropdownMenuItem>
                                                     )}
                                                     {doc.status === 'uploaded' && (
                                                         <>
-                                                            <DropdownMenuItem className="text-green-600">Aprovar</DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-red-600">Rejeitar</DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleApprove(doc.id)}
+                                                                className="text-green-600 cursor-pointer"
+                                                            >
+                                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                                                Aprovar
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleReject(doc.id)}
+                                                                className="text-red-600 cursor-pointer"
+                                                            >
+                                                                <XCircle className="w-4 h-4 mr-2" />
+                                                                Rejeitar
+                                                            </DropdownMenuItem>
                                                         </>
                                                     )}
                                                 </DropdownMenuContent>

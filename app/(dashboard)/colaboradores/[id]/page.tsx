@@ -218,11 +218,27 @@ export default function ColaboradorDetailPage() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Enviar email</DropdownMenuItem>
-                            <DropdownMenuItem>Ver documentos</DropdownMenuItem>
-                            <DropdownMenuItem>Registrar recesso</DropdownMenuItem>
                             <DropdownMenuItem
-                                className="text-red-600"
+                                onClick={() => window.location.href = `mailto:${collaborator.email}`}
+                                className="cursor-pointer"
+                            >
+                                <Mail className="w-4 h-4 mr-2" />
+                                Enviar email
+                            </DropdownMenuItem>
+                            <Link href={`/documentos?collaborator=${params.id}`}>
+                                <DropdownMenuItem className="cursor-pointer">
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Ver documentos
+                                </DropdownMenuItem>
+                            </Link>
+                            <Link href={`/recessos/novo?collaborator=${params.id}`}>
+                                <DropdownMenuItem className="cursor-pointer">
+                                    <Clock className="w-4 h-4 mr-2" />
+                                    Registrar recesso
+                                </DropdownMenuItem>
+                            </Link>
+                            <DropdownMenuItem
+                                className="text-red-600 cursor-pointer"
                                 onClick={handleDelete}
                                 disabled={deleting}
                             >
