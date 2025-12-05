@@ -139,10 +139,16 @@ export default function NovoColaboradorPage() {
         setFeedback(null)
 
         try {
+            // Get token from localStorage
+            const token = localStorage.getItem('auth_token')
+
             // Use API route instead of direct Supabase (bypasses RLS)
             const response = await fetch('/api/collaborators', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
                 body: JSON.stringify({
                     ...formData,
                     contract_type: contractData.contract_type,
