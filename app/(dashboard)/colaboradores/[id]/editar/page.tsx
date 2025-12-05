@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { createClient } from '@/lib/supabase/client'
+import { maskCPF, maskRG, maskPhone, maskCEP, maskBankAgency, maskBankAccount } from '@/lib/utils/masks'
 
 const departmentsList = [
     'Administrativo', 'Comercial', 'Financeiro', 'Marketing',
@@ -111,7 +112,29 @@ export default function EditarColaboradorPage() {
     }, [params.id])
 
     const handleChange = (field: string, value: string) => {
-        setFormData((prev) => ({ ...prev, [field]: value }))
+        // Apply masks based on field
+        let maskedValue = value
+        switch (field) {
+            case 'cpf':
+                maskedValue = maskCPF(value)
+                break
+            case 'rg':
+                maskedValue = maskRG(value)
+                break
+            case 'phone':
+                maskedValue = maskPhone(value)
+                break
+            case 'address_zip':
+                maskedValue = maskCEP(value)
+                break
+            case 'bank_agency':
+                maskedValue = maskBankAgency(value)
+                break
+            case 'bank_account':
+                maskedValue = maskBankAccount(value)
+                break
+        }
+        setFormData((prev) => ({ ...prev, [field]: maskedValue }))
     }
 
     const handleDelete = async () => {
